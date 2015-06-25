@@ -1,0 +1,257 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion43) precise; urgency=low
+
+  * have postinst check for upgrade from Bro 2.3.2 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Jun 2015 22:48:54 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion42) precise; urgency=low
+
+  * update sensortab.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 19 Jun 2015 15:12:09 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion41) precise; urgency=low
+
+  * update extract.bro and shellshock module 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 19 Jun 2015 11:25:43 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion40) precise; urgency=low
+
+  * initial update for Bro 2.4 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 18 Jun 2015 16:57:08 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion39) precise; urgency=low
+
+  * update for Bro 2.3.2 
+
+ -- Doug Burks <doug.burks@gmail.com>  Mon, 26 Jan 2015 16:11:45 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion38) precise; urgency=low
+
+  * update ShellShock - Add shellscripts as a post-exploit detection mechanism. 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 01 Oct 2014 10:52:56 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion37) precise; urgency=low
+
+  * update ShellShock - Add support for the Qmail SMTP "MAIL FROM" attack vector. 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 25 Sep 2014 08:03:55 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion36) precise; urgency=low
+
+  * update ShellShock 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 09:22:48 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion35) precise; urgency=low
+
+  * update ShellShock 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 08:32:43 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion34) precise; urgency=low
+
+  * update ShellShock for DHCP detection 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 07:29:17 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion33) precise; urgency=low
+
+  * add comment for ShellShock detection 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 07:10:37 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion32) precise; urgency=low
+
+  * add ShellShock detection from https://github.com/broala/bro-shellshock 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 06:42:21 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion31) precise; urgency=low
+
+  * update example intel 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 24 Sep 2014 06:37:01 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion30) precise; urgency=low
+
+  * add hash-all-files to intel directory 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 23 Sep 2014 14:38:09 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion29) precise; urgency=low
+
+  * add comments/formatting to local.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 23 Sep 2014 13:56:10 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion28) precise; urgency=low
+
+  * create /opt/bro/share/bro/intel 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 23 Sep 2014 13:22:54 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion27) precise; urgency=low
+
+  * update for Bro 2.3.1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 16 Sep 2014 09:37:14 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion26) precise; urgency=low
+
+  * update bpfconf.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 20 Aug 2014 11:16:15 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion25) precise; urgency=low
+
+  * update sensortab.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 14 Aug 2014 14:57:08 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion24) precise; urgency=low
+
+  * fix path in add-interface-to-logs 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 12 Aug 2014 15:30:51 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion23) precise; urgency=low
+
+  * update to Seth's new sensortab code 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 05 Aug 2014 06:42:37 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion22) precise; urgency=low
+
+  * fix postinst note to user about restarting bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 27 Jul 2014 19:08:40 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion21) precise; urgency=low
+
+  * fix __load__.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 26 Jul 2014 18:00:49 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion20) precise; urgency=low
+
+  * lookup sensorname in /etc/nsm/sensortab.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 26 Jul 2014 17:37:52 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion19) precise; urgency=low
+
+  * fix typo in __load__.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 26 Jul 2014 08:23:31 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion18) precise; urgency=low
+
+  * Issue 484:	securityonion-bro-scripts: update APT1 scripts with Seth's changes for certificate matching 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 25 Jul 2014 15:01:11 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion17) precise; urgency=low
+
+  * always restart bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 10 Nov 2013 18:53:16 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion16) precise; urgency=low
+
+  * restart bro if enabling apt1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 10 Nov 2013 12:46:24 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion15) precise; urgency=low
+
+  * enable apt1 if previously enabled 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 10 Nov 2013 10:16:14 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion14) precise; urgency=low
+
+  * preinst - rename old apt1 scripts 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 10 Nov 2013 09:34:53 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion13) precise; urgency=low
+
+  * really fix APT1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 10 Nov 2013 08:37:47 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion12) precise; urgency=low
+
+  * fix APT1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 09 Nov 2013 22:22:42 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion11) precise; urgency=low
+
+  * APT1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 09 Nov 2013 18:56:25 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion10) precise; urgency=low
+
+  * file extraction 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 09 Nov 2013 16:59:23 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion9) precise; urgency=low
+
+  * update postinst 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 08 Nov 2013 13:59:55 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion8) precise; urgency=low
+
+  * fix config-bro.bro for Bro 2.2 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 08 Nov 2013 10:01:41 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion7) precise; urgency=low
+
+  * update hostname.bro and interface.bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 10 Aug 2013 12:53:36 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion6) precise; urgency=low
+
+  * add sensorname to conn.log 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 02 Jul 2013 21:52:48 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion5) precise; urgency=low
+
+  * add securityonion-profile and securityonion-sudoers as dependencies
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 04 Dec 2012 08:38:35 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion4) precise; urgency=low
+
+  * ignore commented entries in /etc/nsm/sensortab 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 11 Nov 2012 08:00:20 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion3) precise; urgency=low
+
+  * add source for dev ppa 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 09 Nov 2012 13:47:09 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion2) precise; urgency=low
+
+  * update scripts to support per-interface bpf 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 09 Nov 2012 12:27:50 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion1) precise; urgency=low
+
+  * Initial release
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 04 Oct 2012 15:24:11 -0400

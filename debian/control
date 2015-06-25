@@ -1,0 +1,15 @@
+Source: securityonion-bro-scripts
+Section: net
+Priority: extra
+Maintainer: Doug Burks <doug.burks@gmail.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: https://github.com/sethhall/bro-securityonion/
+#Vcs-Git: git://git.debian.org/collab-maint/securityonion-bro-scripts.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/securityonion-bro-scripts.git;a=summary
+
+Package: securityonion-bro-scripts
+Architecture: all
+Depends: ${misc:Depends}, securityonion-bro, securityonion-profile, securityonion-sudoers
+Description: Bro scripts for Security Onion
+ Split http logs per interface, enable country codes in conn.log, BPF, etc.

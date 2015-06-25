@@ -1,0 +1,290 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion32) precise; urgency=low
+ .
+   * add ShellShock detection from https://github.com/broala/bro-shellshock
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/main.bro
+@@ -0,0 +1,117 @@
++
++@load base/frameworks/notice
++@load base/protocols/http
++@load-sigs ./shellshock-http.sig
++
++module ShellShock;
++
++export {
++	redef enum Notice::Type += {
++		## Indicates a high likelyhood of successful shellshock exploitation.
++		Exploit
++	};
++
++	## This contains a list of MIME types that would typically be
++	## seen as droppers after the exploitation of ShellShock.
++	const post_exploit_file_types: set[string] = {
++		"application/x-executable", ##< elf executables (and some others)
++		"application/x-dosexec",    ##< windows executables in case someone is exploiting cygwin
++	} &redef;
++
++	redef enum HTTP::Tags += {
++		HIT
++	};
++}
++
++redef Signatures::actions += {
++	["shellshock-http"] = Signatures::SIG_IGNORE
++};
++
++event bro_init()
++	{
++	local r1 = SumStats::Reducer($stream="shellshock.possible_http_victim", 
++	                             $apply=set(SumStats::LAST),
++	                             $num_last_elements=2);
++
++	local r2 = SumStats::Reducer($stream="shellshock.possible_post_exploit_file", 
++	                             $apply=set(SumStats::LAST),
++	                             $num_last_elements=2);
++
++	local r3 = SumStats::Reducer($stream="shellshock.possible_post_exploit_ping", 
++	                             $apply=set(SumStats::LAST),
++	                             $num_last_elements=2);
++
++	SumStats::create([$name="look-for-shellshock",
++	                  $epoch=5mins,
++	                  $reducers=set(r1, r2, r3),
++	                  $threshold_val(key: SumStats::Key, result: SumStats::Result): double =
++	                  	{
++	                  	local exploit_file = result["shellshock.possible_post_exploit_file"];
++	                  	local exploit_ping = result["shellshock.possible_post_exploit_ping"];
++	                  	return exploit_ping$num + exploit_file$num + 0.0;
++	                  	},
++	                  $threshold = 1.0,
++	                  $threshold_crossed(key: SumStats::Key, result: SumStats::Result) = 
++	                  	{
++	                  	local attacks = result["shellshock.possible_http_victim"];
++	                  	local exploit_file = result["shellshock.possible_post_exploit_file"];
++	                  	local exploit_ping = result["shellshock.possible_post_exploit_ping"];
++	                  	if ( attacks$num > 0 )
++	                  		{
++	                  		local sub_msg = "";
++	                  		if ( exploit_file$num > 0 )
++	                  			{
++	                  			sub_msg = fmt("Requested a potential dropper within %.3f seconds of an attack", exploit_file$begin-attacks$begin);
++	                  			}
++	                  		if ( exploit_ping$num > 0 )
++	                  			{
++	                  			if ( sub_msg != "" )
++	                  				sub_msg += " and ";
++
++	                  			local ping_dst = SumStats::get_last(exploit_ping)[0]$str;
++	                  			sub_msg = fmt("%sSent a ping to %s within %.3f seconds of an attack.", sub_msg, ping_dst, exploit_ping$begin-attacks$begin);
++	                  			}
++
++	                  		NOTICE([$note=Exploit,
++	                  		        $src=key$host,
++	                  		        $msg=fmt("High likelyhood of successful CVE-2014-6271 exploitation against %s.", key$host),
++	                  		        $sub=sub_msg,
++	                  		        $identifier=cat(key$host)]);
++	                  		}
++	                  	}]);
++	}
++
++
++function ShellShock::http_header_sig_match(state: signature_state, data: string): bool
++	{
++	local c = state$conn;
++	if ( c?$http )
++		add c$http$tags[ShellShock::HIT];
++
++	SumStats::observe("shellshock.possible_http_victim", [$host=c$id$resp_h], [$str=data]);
++	return F;
++	}
++
++function ShellShock::http_request_sig_match(state: signature_state, data: string): bool
++	{
++	local c = state$conn;
++	if ( c?$http )
++		add c$http$tags[ShellShock::HIT];
++
++	SumStats::observe("shellshock.possible_http_victim", [$host=c$id$resp_h], [$str=data]);
++	return F;
++	}
++
++event file_over_new_connection(f: fa_file, c: connection, is_orig: bool)
++	{
++	if ( f?$mime_type && f$mime_type in post_exploit_file_types )
++		{
++		local host = is_orig ? c$id$resp_h : c$id$orig_h;
++		SumStats::observe("shellshock.possible_post_exploit_file", [$host=host], [$str=f$mime_type]);
++		}
++	}
++
++event icmp_echo_request(c: connection, icmp: icmp_conn, id: count, seq: count, payload: string)
++	{
++	SumStats::observe("shellshock.possible_post_exploit_ping", [$host=c$id$orig_h], [$str=cat(c$id$resp_h)]);
++	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/shellshock-http.sig
+@@ -0,0 +1,13 @@
++#signature shellshock-http {
++#	ip-proto == tcp
++#	http-request /.*\(\) \{/
++#
++#	eval ShellShock::http_request_sig_match
++#}
++
++signature shellshock-http-header {
++	ip-proto == tcp
++	http-request-header /.*(\(|%28)(\)|%29)( |%20)(\{|%7B)/
++
++	eval ShellShock::http_header_sig_match
++}
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/README.md
+@@ -0,0 +1,86 @@
++ShellShock Detector for Bro
++===========================
++
++This script detects successful exploitation of the Bash vulnerability
++with CVE-2014-6271 nicknamed "ShellShock".  It's more comprehensive than
++most of the detections around in that it's watching for behavior from 
++the attacked host that might indicate successful compromise or actual
++vulnerability.
++
++If a host is seen receiving an attack over HTTP, Bro will watch for that
++host to either download a dropper payload or send an ICMP ping.  Many
++more mechanisms could show up, but this would cover most of the existing
++known response mechanisms.  This script is configured by default to 
++watch for files of mime type application/x-executable which would cover
++the dropper listed in the attack here:
++
++	https://gist.github.com/anonymous/929d622f3b36b00c0be1
++
++Alternately if attackers are just testing with a ping command, this script
++will watch for a ping command from the victim shortly after an
++attack is detected.
++
++This script will also add a tag to the "tags" field in the HTTP log for
++any requests that appear to be possible attacks.  The content of the 
++tag is: ShellShock::HIT.
++
++For what it's worth, this script is cluster-aware and should work on
++Bro clusters just fine and should be ok to run operationally.
++
++Demo
++----
++
++This repository includes an example packet capture that exploits an 
++example server named exploit.pcap.  Here are the relevant logs that are output.
++
++notice.log
++
++	#separator \x09
++	#set_separator	,
++	#empty_field	(empty)
++	#unset_field	-
++	#path	notice
++	#open	2014-09-25-13-46-45
++	#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	fuid	file_mime_type	file_desc	proto	note	msg	sub	src	dst	p	n	peer_descr	actions	suppress_for	dropped	remote_location.country_code	remote_location.region	remote_location.city	remote_location.latitude	remote_location.longitude
++	#types	time	string	addr	port	addr	port	string	string	string	enum	enum	string	string	addr	addr	port	count	string	set[enum]	interval	bool	string	string	string	double	double
++	1411666207.588581	-	-	-	-	-	-	-	-	-	ShellShock::Exploit	High likelyhood of successful CVE-2014-6271 exploitation against 10.246.50.6.	Sent a ping to 10.246.50.2 within 0.000 seconds of an attack.	10.246.50.6	-	-	-	bro	Notice::ACTION_LOG	3600.000000	F	-	-	-	-	-
++	#close	2014-09-25-13-46-45
++
++
++http.log
++
++	#separator \x09
++	#set_separator	,
++	#empty_field	(empty)
++	#unset_field	-
++	#path	http
++	#open	2014-09-25-13-46-45
++	#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	trans_depth	method	host	uri	referrer	user_agent	request_body_len	response_body_len	status_code	status_msg	info_code	info_msg	filename	tags	username	password	proxied	orig_fuids	orig_mime_types	resp_fuids	resp_mime_types
++	#types	time	string	addr	port	addr	port	count	string	string	string	string	string	count	count	count	string	count	string	string	set[enum]	string	string	set[string]	vector[string]	vector[string]	vector[string]	vector[string]
++	1411666207.583791	CRyZah1yxhmar8Xsje	10.246.50.2	43616	10.246.50.6	80	1	GET	10.246.50.6	/exploitable.cgi	-	() { :;}; /bin/ping -c1 10.246.50.2	0	615	500	Internal Server Error	-	-	-	ShellShock::HIT	-	-	-	-	-	FgVgjb1GU12ixSuugc	text/html
++	#close	2014-09-25-13-46-45
++
++
++Installation
++------------
++
++This repository uses the module loading mechanism in Bro so you can simply 
++load this whole directory.  The directions below reflect that model of loading
++the shellshock detector.
++
++	cd <prefix>/share/bro/site
++	git clone --recursive https://github.com/broala/bro-shellshock.git shellshock
++	echo "@load shellshock" >> local.bro
++
++Author
++------
++
++	Seth Hall <seth@broala.com>
++
++Thanks
++------
++
++	Stephen Hosom - for providing a fully exploiting packet capture.
++
++
++
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/__load__.bro
+@@ -0,0 +1,2 @@
++
++@load ./main
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/COPYING
+@@ -0,0 +1,30 @@
++Copyright (c) 2014, Broala. All rights reserved.
++
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++(1) Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++(2) Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++(3) Neither the name of Broala, nor the names of contributors may be used 
++    to endorse or promote products derived from this software without 
++    specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++
++Note that some files in the distribution may carry their own copyright
++notices.

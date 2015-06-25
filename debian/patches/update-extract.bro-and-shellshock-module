@@ -1,0 +1,193 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion41) precise; urgency=low
+ .
+   * update extract.bro and shellshock module
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-bro-scripts-20121004.orig/shellshock/main.bro
++++ securityonion-bro-scripts-20121004/shellshock/main.bro
+@@ -2,6 +2,7 @@
+ @load base/frameworks/notice
+ @load base/protocols/http
+ @load base/utils/time
++@load base/utils/addrs
+ 
+ @load-sigs ./shellshock-http
+ @load-sigs ./file-mimetypes
+@@ -96,26 +97,27 @@ event bro_init()
+ 	                  		{
+ 	                  		local attack_msg = "Attack over";
+ 	                  		local exploit_msg = "";
+-	                  		local attack_time: time;
++	                  		local detect_interval: interval;
++
+ 	                  		if ( http_attacks$num > 0 )
+ 	                  			{
+ 	                  			attack_msg = fmt("%s HTTP", attack_msg);
+-	                  			attack_time = http_attacks$end;
++	                  			detect_interval = exploit_file$begin-http_attacks$end;
+ 	                  			}
+ 	                  		else if ( smtp_attacks$num > 0 )
+ 	                  			{
+ 	                  			attack_msg = fmt("%s SMTP", attack_msg);
+-	                  			attack_time = smtp_attacks$end;
++	                  			detect_interval = exploit_file$begin-smtp_attacks$end;
+ 	                  			}
+ 	                  		else if ( dhcp_attacks$num > 0 )
+ 	                  			{
+ 	                  			attack_msg = fmt("%s DHCP", attack_msg);
+-	                  			attack_time = dhcp_attacks$end;
++	                  			detect_interval = exploit_file$begin-dhcp_attacks$end;
+ 	                  			}
+ 
+ 	                  		if ( exploit_file$num > 0 )
+ 	                  			{
+-	                  			exploit_msg = fmt("requested a potential dropper within %.3f seconds of an attack", exploit_file$begin-attack_time);
++	                  			exploit_msg = fmt("requested a potential dropper within %.2f seconds of an attack", detect_interval);
+ 	                  			}
+ 	                  		if ( exploit_ping$num > 0 )
+ 	                  			{
+@@ -123,7 +125,7 @@ event bro_init()
+ 	                  				exploit_msg += " and ";
+ 
+ 	                  			local ping_dst = SumStats::get_last(exploit_ping)[0]$str;
+-	                  			exploit_msg = fmt("%ssent a ping to %s within %.2f seconds of an attack.", exploit_msg, ping_dst, exploit_ping$begin-attack_time);
++	                  			exploit_msg = fmt("%ssent a ping to %s within %.2f seconds of an attack.", exploit_msg, ping_dst, detect_interval);
+ 	                  			}
+ 
+ 	                  		NOTICE([$note=Exploit,
+@@ -208,7 +210,6 @@ event bro_init()
+ 	                  	        $sub=fmt("Used payload: \"%s\" against sample victim hosts: %s", payload, victim_addrs),
+ 	                  	        $identifier=cat(key$host)]);
+ 	                  	}]);
+-
+ 	}
+ 
+ 
+@@ -244,14 +245,60 @@ event dhcp_ack(c: connection, msg: dhcp_
+ 		}
+ 	}
+ 
++function observe_post_exploit_file(c: connection, f: fa_file, mime_type: string)
++	{
++	if ( f$info$is_orig && f$source == "HTTP" )
++		return;
++
++	if ( mime_type in post_exploit_file_types )
++		{
++		local host = f$is_orig ? c$id$resp_h : c$id$orig_h;
++		SumStats::observe("shellshock.possible_post_exploit_file", [$host=host], [$str=mime_type]);
++		}
++	}
++
++# Deal with version compatibility issues
++@if ( /2\.(3\-[23])/ in bro_version() )
++event file_mime_type(f: fa_file, mime_type: string)
++	{
++	for ( cid in f$conns )
++		{
++		local c = f$conns[cid];
++		observe_post_exploit_file(c, f, mime_type);
++		}
++	}
++
++event file_over_new_connection(f: fa_file, c: connection, is_orig: bool)
++	{
++	if ( f?$mime_type )
++		{
++		observe_post_exploit_file(c, f, f$mime_type);
++		}
++	}
++@endif
++
++# Deal with version compatibility issues
++@if ( /2\.(3\-[78]|4)/ in bro_version() )
++event file_sniff(f: fa_file, meta: fa_metadata)
++	{
++	if ( meta?$mime_type )
++		{
++		for ( cid in f$conns )
++			{
++			local c = f$conns[cid];
++			observe_post_exploit_file(c, f, meta$mime_type);
++			}
++		}
++	}
++
+ event file_over_new_connection(f: fa_file, c: connection, is_orig: bool)
+ 	{
+-	if ( f?$mime_type && f$mime_type in post_exploit_file_types )
++	if ( f$info?$mime_type )
+ 		{
+-		local host = is_orig ? c$id$resp_h : c$id$orig_h;
+-		SumStats::observe("shellshock.possible_post_exploit_file", [$host=host], [$str=f$mime_type]);
++		observe_post_exploit_file(c, f, f$info$mime_type);
+ 		}
+ 	}
++@endif
+ 
+ event icmp_echo_request(c: connection, icmp: icmp_conn, id: count, seq: count, payload: string)
+ 	{
+--- securityonion-bro-scripts-20121004.orig/shellshock/README.md
++++ securityonion-bro-scripts-20121004/shellshock/README.md
+@@ -27,6 +27,13 @@ tag is: ShellShock::HIT.
+ For what it's worth, this script is cluster-aware and should work on
+ Bro clusters just fine and should be ok to run operationally.
+ 
++Support
++-------
++
++This script currently supports Bro 2.3 and 2.4.  Reach out to us at 
++info@broala.com if this script is giving you trouble on any supported
++version of Bro.
++
+ Demo
+ ----
+ 
+@@ -100,4 +107,4 @@ Thanks
+ 	Stephen Hosom   - Provided a fully exploiting packet capture.
+ 	Nick Weaver     - Valuable discussion on how shellshock is and isn't exploitable.
+ 	Vlad Grigorescu - Feature request after feature request.
+-	Mike Patterson  - Suggesting to watch for shellscripts as an post-exploit dropper.
++	Mike Patterson  - Suggesting to watch for shellscripts as a post-exploit dropper.
+--- securityonion-bro-scripts-20121004.orig/file-extraction/extract.bro
++++ securityonion-bro-scripts-20121004/file-extraction/extract.bro
+@@ -6,15 +6,15 @@ global ext_map: table[string] of string
+     ["text/html"] = "html",
+ } &default ="";
+ 
+-event file_new(f: fa_file)
++event file_sniff(f: fa_file, meta: fa_metadata)
+     {
+-    if ( ! f?$mime_type || f$mime_type != "application/x-dosexec" )
++    if ( ! meta?$mime_type || meta$mime_type != "application/x-dosexec" )
+         return;
+ 
+     local ext = "";
+ 
+-    if ( f?$mime_type )
+-        ext = ext_map[f$mime_type];
++    if ( meta?$mime_type )
++        ext = ext_map[meta$mime_type];
+ 
+     local fname = fmt("/nsm/bro/extracted/%s-%s.%s", f$source, f$id, ext);
+     Files::add_analyzer(f, Files::ANALYZER_EXTRACT, [$extract_filename=fname]);

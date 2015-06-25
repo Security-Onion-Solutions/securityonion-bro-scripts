@@ -1,0 +1,75 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion36) precise; urgency=low
+ .
+   * update ShellShock
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-bro-scripts-20121004.orig/shellshock/main.bro
++++ securityonion-bro-scripts-20121004/shellshock/main.bro
+@@ -2,7 +2,9 @@
+ @load base/frameworks/notice
+ @load base/protocols/http
+ @load base/utils/time
+-@load-sigs ./shellshock-http.sig
++
++@load-sigs ./shellshock-http
++@load-sigs ./file-mimetypes
+ 
+ module ShellShock;
+ 
+@@ -30,6 +32,8 @@ export {
+ 	const post_exploit_file_types: set[string] = {
+ 		"application/x-executable", ##< elf executables (and some others)
+ 		"application/x-dosexec",    ##< windows executables in case someone is exploiting cygwin
++		"text/x-php",
++		"text/x-perl",
+ 	} &redef;
+ 
+ 	## The pattern for matching shellshock attacks.  This is 
+@@ -90,12 +94,12 @@ event bro_init()
+ 	                  		if ( http_attacks$num > 0 )
+ 	                  			{
+ 	                  			attack_msg = fmt("%s HTTP", attack_msg);
+-	                  			attack_time = http_attacks$begin;
++	                  			attack_time = http_attacks$end;
+ 	                  			}
+ 	                  		else if ( dhcp_attacks$num > 0 )
+ 	                  			{
+ 	                  			attack_msg = fmt("%s DHCP", attack_msg);
+-	                  			attack_time = dhcp_attacks$begin;
++	                  			attack_time = dhcp_attacks$end;
+ 	                  			}
+ 
+ 	                  		if ( exploit_file$num > 0 )
+--- /dev/null
++++ securityonion-bro-scripts-20121004/shellshock/file-mimetypes.sig
+@@ -0,0 +1,9 @@
++signature file-shellshock-php {
++	file-mime "text/x-php", 60
++	file-magic /.*<\?php/
++}
++
++signature file-shellshock-perl {
++	file-mime "text/x-perl", 60
++	file-magic /\x23\x21.*bin\/perl/
++}
+\ No newline at end of file

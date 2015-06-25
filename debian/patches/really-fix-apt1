@@ -1,0 +1,49 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion13) precise; urgency=low
+ .
+   * really fix APT1
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-bro-scripts-20121004.orig/apt1/apt1-fqdn.dat
++++ securityonion-bro-scripts-20121004/apt1/apt1-fqdn.dat
+@@ -1,8 +1,6 @@
+ #fields	indicator	indicator_type	meta.source	meta.do_notice
+-
+ # The following line is for testing only.  Please keep it commented out when running in production.
+ #time.windows.com	Intel::DOMAIN	Test FQDN	T
+-
+ advanbusiness.com	Intel::DOMAIN	Mandiant APT1 Report	T
+ aoldaily.com	Intel::DOMAIN	Mandiant APT1 Report	T
+ aolon1ine.com	Intel::DOMAIN	Mandiant APT1 Report	T
+--- securityonion-bro-scripts-20121004.orig/apt1/apt1-md5.dat
++++ securityonion-bro-scripts-20121004/apt1/apt1-md5.dat
+@@ -1,10 +1,8 @@
+ #fields	indicator	indicator_type	meta.source	meta.do_notice
+-
+ # The following lines are for testing purposes only.  Please keep them commented out when running in production.
+ #4285358dd748ef74cb8161108e11cb73	Intel::FILE_HASH	Test MD5	T
+ #9593fcbd91fdb1a41d0304bf684d29fd	Intel::FILE_HASH	Test MD5	T
+ #e2c33fa7a3802289d46a7c3e4e1df342	Intel::FILE_HASH	Test MD5	T
+-
+ 001dd76872d80801692ff942308c64e6	Intel::FILE_HASH	Mandiant Apt1 Report	T
+ 002325a0a67fded0381b5648d7fe9b8e	Intel::FILE_HASH	Mandiant Apt1 Report	T
+ 00dbb9e1c09dbdafb360f3163ba5a3de	Intel::FILE_HASH	Mandiant Apt1 Report	T

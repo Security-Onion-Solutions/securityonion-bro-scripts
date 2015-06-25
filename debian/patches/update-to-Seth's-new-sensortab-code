@@ -1,0 +1,353 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion23) precise; urgency=low
+ .
+   * update to Seth's new sensortab code
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-bro-scripts-20121004.orig/bpfconf.bro
++++ securityonion-bro-scripts-20121004/bpfconf.bro
+@@ -3,15 +3,14 @@
+ ##! hacks in it to work around bugs discovered in Bro.
+ 
+ @load base/frameworks/notice
+-@load ./interface
+-@load ./sensorname
++@load ./sensortab
+ 
+ module BPFConf;
+ 
+ export {
+ 	## The file that is watched on disk for BPF filter changes.
+-	## A templated variable is available: "sensorname".
+-	## It can be used by surrounding the term by doubled curly braces.
++	## Two templated variables are available; "sensorname" and "interface".
++	## They can be used by surrounding the term by doubled curly braces.
+ 	const filename = "/etc/nsm/{{sensorname}}/bpf-bro.conf" &redef;
+ 
+ 	redef enum Notice::Type += { 
+@@ -21,28 +20,31 @@ export {
+ }
+ 
+ global filter_parts: vector of string = vector();
+-
+ global current_filter_filename = "";
+ 
+ type FilterLine: record {
+ 	s: string;
+ };
+ 
+-global last_line = current_time();
+-global ignore_lines_until = last_line;
+-
+ redef enum PcapFilterID += {
+ 	BPFConfPcapFilter,
+ };
+ 
++event BPFConf::line(description: Input::EventDescription, tpe: Input::Event, s: string)
++	{
++	local part = sub(s, /[[:blank:]]*#.*$/, "");
+ 
+-event is_filter_done()
++	# We don't want any blank parts.
++	if ( part != "" )
++		filter_parts[|filter_parts|] = part;
++	}
++
++event Input::end_of_data(name: string, source:string)
+ 	{
+-	if ( |filter_parts| > 0 && current_time() - last_line > 5msec )
++	if ( name == "bpfconf" )
+ 		{
+ 		local filter = join_string_vec(filter_parts, " ");
+ 		capture_filters["bpf.conf"] = filter;
+-		
+ 		if ( precompile_pcap_filter(BPFConfPcapFilter, filter) )
+ 			{
+ 			PacketFilter::install();
+@@ -58,40 +60,18 @@ event is_filter_done()
+ 		}
+ 	}
+ 
+-event BPFConf::line(description: Input::EventDescription, tpe: Input::Event, s: string)
+-	{
+-	last_line = current_time();
+-	if ( last_line < ignore_lines_until )
+-		return;
+-
+-	local part = sub(s, /[[:blank:]]*#.*$/, "");
+-
+-	# There is a bug in the input framework where it's reading the file twice the first time.
+-	# If there is a duplicate line, this avoids rereading it.
+-	if ( |filter_parts| > 0 && filter_parts[0] == part )
+-		{
+-		ignore_lines_until = last_line + 2secs;
+-		return;
+-		}
+-	
+-	# We don't want any blank parts.
+-	if ( part != "" )
+-		filter_parts[|filter_parts|] = part;
+-
+-	schedule 2secs { is_filter_done() };
+-	}
+-
+ 
+ function add_filter_file()
+ 	{
+ 	local real_filter_filename = BPFConf::filename;
+ 
+-	# Support the sensorname template value.
+-	if ( SecurityOnion::interface in SecurityOnion::sensornames)
+-		{
+-		if ( SecurityOnion::sensornames[SecurityOnion::interface]$sensorname != "" )
+-			real_filter_filename = gsub(real_filter_filename, /\{\{sensorname\}\}/, SecurityOnion::sensornames[SecurityOnion::interface]$sensorname);
+-		}
++	# Support the interface template value.
++	if ( SecurityOnion::sensorname != "" )
++		real_filter_filename = gsub(real_filter_filename, /\{\{sensorname\}\}/, SecurityOnion::sensorname);
++
++	# Support the interface template value.
++	if ( SecurityOnion::interface != "" )
++		real_filter_filename = gsub(real_filter_filename, /\{\{interface\}\}/, SecurityOnion::interface);
+ 
+ 	if ( /\{\{/ in real_filter_filename )
+ 		{
+@@ -114,7 +94,17 @@ function add_filter_file()
+ 		}
+ 	}
+ 
+-event Input::end_of_data(name: string, source: string) 
++event SecurityOnion::found_sensorname(name: string)
++	{
++	add_filter_file();
++	}
++event SecurityOnion::found_interface(inter: string)
+ 	{
+ 	add_filter_file();
+ 	}
++
++event bro_init() &priority=5
++	{
++	if ( BPFConf::filename != "" )
++		add_filter_file();
++	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/sensortab.bro
+@@ -0,0 +1,75 @@
++@load ./readfile
++
++module SecurityOnion;
++
++@load base/frameworks/input
++@load base/frameworks/cluster
++
++export {
++	## Event to capture when the interface is discovered.
++	global SecurityOnion::found_interface: event(inter: string);
++
++	## Event to capture when the interface is discovered.
++	global SecurityOnion::found_sensorname: event(name: string);
++
++	## Interface being sniffed.
++	global interface = "";
++
++	## Name of the sensor.
++	global sensorname = "";
++}
++
++event bro_init()
++	{
++	local peer = get_event_peer()$descr;
++	if ( peer in Cluster::nodes && Cluster::nodes[peer]?$interface )
++		{
++		interface = Cluster::nodes[peer]$interface;
++		event SecurityOnion::found_interface(interface);
++		return;
++		}
++	else
++		{
++		# If running in standalone mode...
++		when ( local nodefile = readfile("/opt/bro/etc/node.cfg") )
++			{
++			local lines = split_all(nodefile, /\n/);
++			for ( i in lines )
++				{
++				if ( /^[[:blank:]]*#/ in lines[i])
++					next;
++
++				local fields = split_all(lines[i], /[[:blank:]]*=[[:blank:]]*/);
++				if ( 3 in fields && fields[1] == "interface" )
++					{
++					interface = fields[3];
++					event SecurityOnion::found_interface(interface);
++					}
++				}
++			}
++		}
++	}
++
++event SecurityOnion::found_interface(interface: string)
++	{
++	when ( local r = readfile("/etc/nsm/sensortab") )
++		{
++		local lines = split_all(r, /\n/);
++		for ( i in lines )
++			{
++			local fields = split_all(lines[i], /\t/);
++			if ( 7 !in fields )
++				next;
++
++			local name = fields[1];
++			local iface = fields[7];
++			
++			if ( SecurityOnion::iface == interface )
++				{
++				#print "Sensorname: " + sensor_name + " -- Interface: " + sensor_interface;
++				sensorname = name;
++				event SecurityOnion::found_sensorname(sensorname);
++				}
++			}
++		}
++	}
+\ No newline at end of file
+--- securityonion-bro-scripts-20121004.orig/__load__.bro
++++ securityonion-bro-scripts-20121004/__load__.bro
+@@ -1,9 +1,8 @@
+-@load ./interface
+-@load ./sensorname
++@load ./sensortab
+ @load ./bpfconf
+ @load ./add-interface-to-logs
+ @load ./load-non-default-scripts
+ @load ./conn-add-country
+-@load ./conn-add-sensorname
++@load ./conn-add-sensorname.bro
+ 
+ @load ./config-bro
+--- securityonion-bro-scripts-20121004.orig/add-interface-to-logs.bro
++++ securityonion-bro-scripts-20121004/add-interface-to-logs.bro
+@@ -10,9 +10,9 @@ event bro_init()
+ 	                            	{ 
+ 	                            	local peer = get_event_peer()$descr;
+ 	                            	if ( peer in Cluster::nodes && Cluster::nodes[peer]?$interface )
+-	                            		return cat("http_", Cluster::nodes[peer]$interface);
++	                            		return cat(path, "_", Cluster::nodes[peer]$interface);
+ 	                            	else
+-	                            		return "http";
++	                            		return path;
+ 	                            	}
+ 	                            ]);
+ 	}
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/readfile.bro
+@@ -0,0 +1,55 @@
++module SecurityOnion;
++
++export {
++	## Read a file.  This function *must* be called from within 
++	## a "when" statement since it's an asynchronous function.
++	##
++	## filename: The full path and filename to read off disk.
++	##
++	## Returns: The contents of the file as a string.
++	global readfile: function(filename: string): string;
++}
++
++global outstanding_reads: table[string] of string = table();
++global complete_reads: set[string] = set();
++
++type Line: record {
++	l: string;
++};
++
++event read_entry(desc: Input::EventDescription, tpe: Input::Event, line: string)
++	{
++	if ( desc$name in outstanding_reads ) 
++		{
++		outstanding_reads[desc$name] += line + "\n";
++		}
++	}
++
++event Input::end_of_data(name: string, source:string)
++	{
++	if ( name in complete_reads )
++		delete complete_reads[name];
++	}
++
++function readfile(filename: string): string
++	{
++	local id = unique_id("SOrfile");
++	outstanding_reads[id] = "";
++	add complete_reads[id];
++	
++	Input::add_event([$source=filename,
++	                  $reader=Input::READER_RAW,
++	                  $mode=Input::MANUAL,
++	                  $name=id,
++	                  $fields=Line,
++	                  $want_record=F,
++	                  $ev=read_entry]);
++
++	return when ( id !in complete_reads )
++		{
++		local output = outstanding_reads[id];
++		delete outstanding_reads[id];
++		Input::remove(id);
++		return output;
++		}
++	}
+--- securityonion-bro-scripts-20121004.orig/conn-add-sensorname.bro
++++ securityonion-bro-scripts-20121004/conn-add-sensorname.bro
+@@ -1,15 +1,11 @@
+-@load ./interface
+-@load ./sensorname
++@load ./sensortab
+ 
+ redef record Conn::Info += {
+-        sensorname: string &log &optional;
++	sensorname: string &log &optional;
+ };
+ 
+ event connection_state_remove(c: connection)
+-        {
+-		if ( SecurityOnion::interface in SecurityOnion::sensornames)
+-			{
+-	                c$conn$sensorname = SecurityOnion::sensornames[SecurityOnion::interface]$sensorname;
+-			}
+-        }
++	{
++	c$conn$sensorname = SecurityOnion::sensorname;
++	}
+ 
+--- securityonion-bro-scripts-20121004.orig/config-bro.bro
++++ securityonion-bro-scripts-20121004/config-bro.bro
+@@ -1,8 +1,4 @@
+ ##! This script reconfigures some of the builtin Bro scripts to suit certain SecurityOnion uses.
+ 
+-# Commenting out for Bro 2.2
+-# redef PacketFilter::all_packets = F;
+-
+-redef capture_filters = { ["bpf.conf"] = "ip or not ip" };
+-
+ redef Notice::emailed_types += { BPFConf::InvalidFilter };
++

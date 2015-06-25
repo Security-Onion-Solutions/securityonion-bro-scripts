@@ -1,0 +1,4 @@
+*.bro opt/bro/share/bro/securityonion/
+file-extraction opt/bro/share/bro/
+apt1 opt/bro/share/bro/
+shellshock opt/bro/share/bro/

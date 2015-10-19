@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion46) trusty; urgency=medium
+
+  * check to see if /etc/nsm/securityonion.conf exists 
+
+ -- Doug Burks <doug.burks@gmail.com>  Mon, 19 Oct 2015 15:54:50 -0400
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion45) trusty; urgency=medium
 
   * improve check for "load securityonion" in postinst 

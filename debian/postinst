@@ -86,8 +86,9 @@ EOF
 	fi
 	
 	# Create bpf-bro.conf symlink if it doesn't already exist
-	if [ -f /etc/nsm/sensortab ]; then
-		for i in `grep -v "^#" /etc/nsm/sensortab | awk '{print $1}'`; do 
+	SENSORTAB="/etc/nsm/sensortab"
+	if [ -f $SENSORTAB ]; then
+		for i in `grep -v "^#" $SENSORTAB | awk '{print $1}'`; do 
 			cd /etc/nsm/$i/
 			[ -f bpf-bro.conf ] || ln -s bpf.conf bpf-bro.conf
 			cd ->/dev/null
@@ -95,12 +96,15 @@ EOF
 	fi
 
 	# if Bro is enabled, then tell user to check/install/restart
-	BRO_ENABLED=`grep BRO_ENABLED /etc/nsm/securityonion.conf | cut -d\= -f2`
-	if [ "$BRO_ENABLED" = "yes" ] ; then
-		echo "PLEASE NOTE: Bro scripts have been updated."
-		echo "Please double-check your configuration and add back any local customizations."
-		echo "Then restart Bro as follows:"
-		echo "sudo nsm_sensor_ps-restart --only-bro"
+	CONF="/etc/nsm/securityonion.conf"
+	if [ -f $CONF ]; then
+		BRO_ENABLED=`grep BRO_ENABLED $CONF | cut -d\= -f2`
+		if [ "$BRO_ENABLED" = "yes" ] ; then
+			echo "PLEASE NOTE: Bro scripts have been updated."
+			echo "Please double-check your configuration and add back any local customizations."
+			echo "Then restart Bro as follows:"
+			echo "sudo nsm_sensor_ps-restart --only-bro"
+		fi
 	fi
     ;;
 

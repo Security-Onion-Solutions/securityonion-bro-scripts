@@ -9,7 +9,7 @@ case "$1" in
 	LOCALBROPREV="$LOCALBRO.2.3.2"
 
 	# Load Security Onion scripts        
-	if ! grep "securityonion" $LOCALBRO >/dev/null; then
+	if ! grep "@load securityonion" $LOCALBRO >/dev/null; then
         	echo >> $LOCALBRO
         	echo "# Security Onion default scripts" >> $LOCALBRO
         	echo "@load securityonion" >> $LOCALBRO

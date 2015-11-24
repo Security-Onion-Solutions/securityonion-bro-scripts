@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion47) trusty; urgency=medium
+
+  * update for Bro 2.4.1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 24 Nov 2015 16:04:14 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion46) trusty; urgency=medium
 
   * check to see if /etc/nsm/securityonion.conf exists 

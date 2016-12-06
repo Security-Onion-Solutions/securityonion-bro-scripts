@@ -45,7 +45,7 @@ event Input::end_of_data(name: string, source:string)
 		{
 		local filter = join_string_vec(filter_parts, " ");
 		capture_filters["bpf.conf"] = filter;
-		if ( precompile_pcap_filter(BPFConfPcapFilter, filter) )
+		if ( Pcap::precompile_pcap_filter(BPFConfPcapFilter, filter) )
 			{
 			PacketFilter::install();
 			}

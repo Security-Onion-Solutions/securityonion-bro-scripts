@@ -6,7 +6,7 @@ case "$1" in
     configure)
 
 	LOCALBRO="/opt/bro/share/bro/site/local.bro"
-	LOCALBROPREV="$LOCALBRO.pre-2.4"
+	LOCALBROPREV="$LOCALBRO.pre-2.5"
 
 	# Load Security Onion scripts        
 	if ! grep "@load securityonion" $LOCALBRO >/dev/null; then

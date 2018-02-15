@@ -25,3 +25,4 @@ update-sensortab.bro-for-Bro-2.4
 update-README.md
 precompile_pcap_filter()-->-Pcap::precompile_pcap_filter()
 update-for-Bro-2.5.3
+add-json-logs

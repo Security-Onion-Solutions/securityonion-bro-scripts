@@ -85,6 +85,18 @@ EOF
         	echo "@load shellshock" >> $LOCALBRO
 	fi
 	
+	# Load json-logs if appropriate
+	if ! grep "load json-logs" $LOCALBRO >/dev/null; then
+        	echo >> $LOCALBRO
+        	echo "# Output logs in JSON format" >> $LOCALBRO
+        	echo "# Do not enable if you're still using ELSA!" >> $LOCALBRO
+		if [ -f $LOCALBROPREV ] && grep "^@load json-logs" $LOCALBROPREV >/dev/null; then
+        		echo "@load json-logs" >> $LOCALBRO
+		else
+        		echo "#@load json-logs" >> $LOCALBRO
+		fi
+	fi
+
 	# Create bpf-bro.conf symlink if it doesn't already exist
 	SENSORTAB="/etc/nsm/sensortab"
 	if [ -f $SENSORTAB ]; then

@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion54) trusty; urgency=medium
+
+  * only add json-logs to local.bro if previously enabled 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 21 Feb 2018 05:59:34 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion53) trusty; urgency=medium
 
   * add json-logs 

@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion63) xenial; urgency=medium
+
+  * update postinst to recommend so-bro-restart 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 28 Dec 2018 16:53:23 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion62) xenial; urgency=medium
 
   * shellshock relies on deprecated events and is disabled by default now 

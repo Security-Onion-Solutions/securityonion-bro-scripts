@@ -115,7 +115,7 @@ EOF
 			echo "PLEASE NOTE: Bro scripts have been updated."
 			echo "Please double-check your configuration and add back any local customizations."
 			echo "Then restart Bro as follows:"
-			echo "sudo nsm_sensor_ps-restart --only-bro"
+			echo "sudo so-bro-restart"
 		fi
 	fi
     ;;

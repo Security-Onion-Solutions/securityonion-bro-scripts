@@ -1,3 +1,51 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion62) xenial; urgency=medium
+
+  * shellshock relies on deprecated events and is disabled by default now 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 28 Dec 2018 16:40:06 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion61) xenial; urgency=medium
+
+  * build for 2.6.1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 28 Dec 2018 10:30:10 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion60) xenial; urgency=medium
+
+  * build for 2.5.5 on xenial 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 30 Aug 2018 07:03:58 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion59) trusty; urgency=medium
+
+  * build for 2.5.5 on trusty 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 30 Aug 2018 07:03:06 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion58) xenial; urgency=medium
+
+  * build for 2.5.4 on xenial 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 06 Jun 2018 07:24:51 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion57) trusty; urgency=medium
+
+  * build for 2.5.4 on trusty 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 06 Jun 2018 07:23:45 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion56) xenial; urgency=medium
+
+  * rebuild for xenial 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 17 May 2018 17:40:32 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion55) trusty; urgency=medium
+
+  * add json-logs to install 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 21 Feb 2018 06:32:52 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion54) trusty; urgency=medium
 
   * only add json-logs to local.bro if previously enabled 

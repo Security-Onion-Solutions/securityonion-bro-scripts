@@ -6,7 +6,7 @@ case "$1" in
     configure)
 
 	LOCALBRO="/opt/bro/share/bro/site/local.bro"
-	LOCALBROPREV="$LOCALBRO.pre-2.5.3"
+	LOCALBROPREV="$LOCALBRO.pre-2.6.1"
 
 	# Load Security Onion scripts        
 	if ! grep "@load securityonion" $LOCALBRO >/dev/null; then
@@ -82,7 +82,9 @@ EOF
 	if ! grep "load shellshock" $LOCALBRO >/dev/null; then
         	echo >> $LOCALBRO
         	echo "# ShellShock - detects successful exploitation of Bash vulnerability CVE-2014-6271" >> $LOCALBRO
-        	echo "@load shellshock" >> $LOCALBRO
+		echo "# shellshock.bro was written for earlier version of Bro and relies on some deprecated events." >> $LOCALBRO
+        	echo "#@load policy/protocols/dhcp/deprecated_events.bro" >> $LOCALBRO
+        	echo "#@load shellshock" >> $LOCALBRO
 	fi
 	
 	# if Bro was previously configured for JSON output, then add json-logs to local.bro

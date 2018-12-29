@@ -3,3 +3,4 @@ file-extraction opt/bro/share/bro/
 apt1 opt/bro/share/bro/
 shellshock opt/bro/share/bro/
 json-logs opt/bro/share/bro/
+ja3 opt/bro/share/bro/

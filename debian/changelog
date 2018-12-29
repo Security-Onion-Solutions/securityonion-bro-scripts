@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion64) xenial; urgency=medium
+
+  * securityonion-bro-scripts: add JA3 #1115 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 29 Dec 2018 08:11:20 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion63) xenial; urgency=medium
 
   * update postinst to recommend so-bro-restart 

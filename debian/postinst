@@ -97,6 +97,13 @@ EOF
 		fi
 	fi
 
+	# Load ja3
+	if ! grep "load ja3" $LOCALBRO >/dev/null; then
+        	echo >> $LOCALBRO
+        	echo "# ja3 - a standard for creating SSL client fingerprints in an easy to produce and shareable way" >> $LOCALBRO
+        	echo "@load ja3" >> $LOCALBRO
+	fi
+	
 	# Create bpf-bro.conf symlink if it doesn't already exist
 	SENSORTAB="/etc/nsm/sensortab"
 	if [ -f $SENSORTAB ]; then

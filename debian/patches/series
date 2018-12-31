@@ -27,3 +27,4 @@ precompile_pcap_filter()-->-Pcap::precompile_pcap_filter()
 update-for-Bro-2.5.3
 add-json-logs
 securityonion-bro-scripts:-add-JA3-#1115
+securityonion-bro-scripts:-add-HASSH-#1338

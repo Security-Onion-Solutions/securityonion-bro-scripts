@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion66) xenial; urgency=medium
+
+  * securityonion-bro-scripts: add HASSH #1338 
+
+ -- Doug Burks <doug.burks@gmail.com>  Mon, 31 Dec 2018 07:50:02 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion65) xenial; urgency=medium
 
   * update debian/install to install ja3 

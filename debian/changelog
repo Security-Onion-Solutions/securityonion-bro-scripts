@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion67) xenial; urgency=medium
+
+  * update postinst to enable hassh 
+
+ -- Doug Burks <doug.burks@gmail.com>  Mon, 31 Dec 2018 08:31:41 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion66) xenial; urgency=medium
 
   * securityonion-bro-scripts: add HASSH #1338 

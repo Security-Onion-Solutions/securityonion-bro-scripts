@@ -104,6 +104,13 @@ EOF
         	echo "@load ja3" >> $LOCALBRO
 	fi
 	
+	# Load hassh
+	if ! grep "load hassh" $LOCALBRO >/dev/null; then
+        	echo >> $LOCALBRO
+        	echo "# hassh - a network fingerprinting standard which can be used to identify specific Client and Server SSH implementations" >> $LOCALBRO
+        	echo "@load hassh" >> $LOCALBRO
+	fi
+	
 	# Create bpf-bro.conf symlink if it doesn't already exist
 	SENSORTAB="/etc/nsm/sensortab"
 	if [ -f $SENSORTAB ]; then

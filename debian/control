@@ -10,6 +10,6 @@ Homepage: https://github.com/sethhall/bro-securityonion/
 
 Package: securityonion-bro-scripts
 Architecture: all
-Depends: ${misc:Depends}, securityonion-bro, securityonion-profile, securityonion-sudoers
+Depends: ${misc:Depends}, securityonion-bro, securityonion-bro-afpacket, securityonion-profile, securityonion-sudoers
 Description: Bro scripts for Security Onion
  Split http logs per interface, enable country codes in conn.log, BPF, etc.

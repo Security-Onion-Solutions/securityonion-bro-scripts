@@ -28,3 +28,4 @@ update-for-Bro-2.5.3
 add-json-logs
 securityonion-bro-scripts:-add-JA3-#1115
 securityonion-bro-scripts:-add-HASSH-#1338
+securityonion-bro-scripts:-support-securityonion-bro-afpacket-Security-Onion-Solutionssecurity-onion#1412

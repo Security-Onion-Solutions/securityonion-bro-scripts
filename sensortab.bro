@@ -30,6 +30,8 @@ event bro_init()
 		if ( node in Cluster::nodes && Cluster::nodes[node]?$interface )
 			{
 			interface = Cluster::nodes[node]$interface;
+			# If af_packet plugin is enabled, we need to strip "af_packet::" off the interface name
+			interface = subst_string(interface, "af_packet::", "");
 			event SecurityOnion::found_interface(interface);
 			}
 		}

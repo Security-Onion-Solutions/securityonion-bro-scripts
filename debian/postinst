@@ -111,6 +111,14 @@ EOF
         	echo "@load hassh" >> $LOCALBRO
 	fi
 	
+	# Update broctl.cfg for AF_PACKET
+	BROCTLCFG="/opt/bro/etc/broctl.cfg"
+	if ! grep "lb_custom.InterfacePrefix=af_packet::" $BROCTLCFG >/dev/null; then
+        	echo >> $BROCTLCFG
+        	echo "# All interfaces using lb_method=custom should be configured for AF_PACKET" >> $BROCTLCFG
+        	echo "lb_custom.InterfacePrefix=af_packet::" >> $BROCTLCFG
+	fi
+	
 	# Create bpf-bro.conf symlink if it doesn't already exist
 	SENSORTAB="/etc/nsm/sensortab"
 	if [ -f $SENSORTAB ]; then

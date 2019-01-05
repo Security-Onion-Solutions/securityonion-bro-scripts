@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion69) xenial; urgency=medium
+
+  * update add-interface-to-logs.bro to handle afpacket Security-Onion-Solutions/security-onion#1412 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 05 Jan 2019 10:10:24 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion68) xenial; urgency=medium
 
   * securityonion-bro-scripts: support securityonion-bro-afpacket Security-Onion-Solutions/security-onion#1412 

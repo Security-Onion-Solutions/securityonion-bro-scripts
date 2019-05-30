@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion70) xenial; urgency=medium
+
+  * increment version to 2.6.2 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 30 May 2019 13:04:45 -0400
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion69) xenial; urgency=medium
 
   * update add-interface-to-logs.bro to handle afpacket Security-Onion-Solutions/security-onion#1412 

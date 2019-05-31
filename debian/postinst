@@ -92,7 +92,6 @@ EOF
 		if [ -f $LOCALBROPREV ] && grep "^@load json-logs" $LOCALBROPREV >/dev/null; then
         		echo >> $LOCALBRO
 	        	echo "# Output logs in JSON format" >> $LOCALBRO
-        		echo "# Do not enable if you're still using ELSA!" >> $LOCALBRO
         		echo "@load json-logs" >> $LOCALBRO
 		fi
 	fi
@@ -111,6 +110,17 @@ EOF
         	echo "@load hassh" >> $LOCALBRO
 	fi
 	
+	# Modern versions of Setup disable Bro's syslog.log in Production Mode
+	# so if syslog.log was disabled in the previous local.bro, then re-add that setting
+	if ! grep "load disable-syslog" $LOCALBRO >/dev/null; then
+		if [ -f $LOCALBROPREV ] && grep "^@load disable-syslog" $LOCALBROPREV >/dev/null; then
+        		echo >> $LOCALBRO
+	        	echo "# Disable Bro syslog.log in Production Mode" >> $LOCALBRO
+        		echo "# https://github.com/Security-Onion-Solutions/security-onion/issues/1457" >> $LOCALBRO
+        		echo "@load disable-syslog" >> $LOCALBRO
+		fi
+	fi
+
 	# Update broctl.cfg for AF_PACKET
 	BROCTLCFG="/opt/bro/etc/broctl.cfg"
 	if ! grep "lb_custom.InterfacePrefix=af_packet::" $BROCTLCFG >/dev/null; then

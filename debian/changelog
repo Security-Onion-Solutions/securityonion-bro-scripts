@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion72) xenial; urgency=medium
+
+  * increment version to 2.6.3 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 09 Aug 2019 05:54:18 -0400
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion71) xenial; urgency=medium
 
   * if Bro syslog.log was previously disabled, re-add that setting 

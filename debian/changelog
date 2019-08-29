@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion73) xenial; urgency=medium
+
+  * increment version to 2.6.4 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 29 Aug 2019 05:20:11 -0400
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion72) xenial; urgency=medium
 
   * increment version to 2.6.3 

@@ -1,5 +1,5 @@
 
-event bro_init()
+event zeek_init()
 	{
 	if ( ! reading_live_traffic() )
 		return;

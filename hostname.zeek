@@ -19,7 +19,7 @@ event SecurityOnion::hostname_line(description: Input::EventDescription, tpe: In
     Input::remove(description$name);
     }   
 
-event bro_init() &priority=5
+event zeek_init() &priority=5
     {
     Input::add_event([$source="hostname |",
                       $name="SO-hostname",

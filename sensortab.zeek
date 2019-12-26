@@ -22,7 +22,7 @@ export {
 	const sensortab_file = "/opt/bro/etc/node.cfg" &redef;
 }
 
-event bro_init()
+event zeek_init()
 	{
 	if ( Cluster::is_enabled() && Cluster::local_node_type() == Cluster::WORKER ) 
 		{

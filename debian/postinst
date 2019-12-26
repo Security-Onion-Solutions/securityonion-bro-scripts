@@ -5,8 +5,76 @@ set -e
 case "$1" in
     configure)
 
-	LOCALBRO="/opt/bro/share/bro/site/local.bro"
-	LOCALBROPREV="$LOCALBRO.pre-2.6.4"
+	# Symlink /opt/zeek to /opt/bro
+	LINK="/opt/zeek"
+	TARGET="bro"
+	if [ -e $LINK ]; then 
+		echo "Verified that $LINK exists."
+	else
+		echo "Linking $LINK to $TARGET"
+		ln -s $TARGET $LINK || echo "Error linking $LINK."
+	fi
+
+	# Symlink /nsm/zeek to /nsm/bro
+	LINK="/nsm/zeek"
+	TARGET="bro"
+	if [ -e $LINK ]; then 
+		echo "Verified that $LINK exists."
+	else
+		echo "Linking $LINK to $TARGET"
+		ln -s $TARGET $LINK || echo "Error linking $LINK."
+	fi
+
+	# Symlink /opt/bro/share/bro to /opt/bro/share/zeek
+	#LINK="/opt/bro/share/bro"
+	#TARGET="zeek"
+	#if [ -e $LINK ]; then 
+	#	echo "Verified that $LINK exists."
+	#else
+	#	echo "Linking $LINK to $TARGET"
+	#	ln -s $TARGET $LINK || echo "Error linking $LINK."
+	#fi
+
+	# Symlink /opt/bro/share/zeek/site/local.bro to /opt/bro/share/zeek/site/local.zeek
+	LINK="/opt/bro/share/zeek/site/local.bro"
+	TARGET="local.zeek"
+	if [ -e $LINK ]; then 
+		echo "Verified that $LINK exists."
+	else
+		echo "Linking $LINK to $TARGET"
+		ln -s $TARGET $LINK || echo "Error linking $LINK."
+	fi
+
+	# Symlink /opt/bro/etc/broctl.cfg to /opt/bro/etc/zeekctl.cfg
+	LINK="/opt/bro/etc/broctl.cfg"
+	TARGET="zeekctl.cfg"
+	if [ -h $LINK ]; then 
+		echo "Verified that $LINK is already a symlink."
+	else
+		if [ -f $LINK ]; then
+			echo "Renaming $LINK to $LINK.bak."
+			mv $LINK $LINK.bak || echo "Error renaming $LINK to $LINK.bak."
+		fi
+		echo "Linking $LINK to $TARGET"
+		ln -s $TARGET $LINK || echo "Error linking $LINK."
+	fi
+
+	# Create symlinks for disable-syslog, intel, and sguild_bro
+	for i in disable-syslog intel sguild_bro; do
+		LINK="/opt/zeek/share/zeek/$i"
+		TARGET="/opt/zeek/share/bro/$i"
+		if [ -d $TARGET ]; then
+			if [ -L $LINK ]; then
+				echo "$LINK already exists."
+			else
+				echo "Linking $LINK to $TARGET."
+				ln -s $TARGET $LINK || echo "Error linking $LINK."
+			fi
+		fi
+	done
+
+	LOCALBRO="/opt/zeek/share/zeek/site/local.zeek"
+	LOCALBROPREV="/opt/bro/share/bro/site/local.bro.pre-3.0.1"
 
 	# Load Security Onion scripts        
 	if ! grep "@load securityonion" $LOCALBRO >/dev/null; then
@@ -139,15 +207,32 @@ EOF
 		done
 	fi
 
+	# update node.cfg
+	NODECFG="/opt/bro/etc/node.cfg"
+	if [ -f $NODECFG ]; then
+		sed -i 's|^\[bro\]$|[zeek]|g' $NODECFG || echo "Error updating $NODECFG."
+	fi
+
+	# update /opt/bro/share/bro/disable-syslog/
+	DISABLESYSLOG="/opt/bro/share/bro/disable-syslog/disable-syslog"
+	if [ -f $DISABLESYSLOG.bro ]; then
+		sed -i 's|bro_init|zeek_init|g' $DISABLESYSLOG.bro || echo "Error update $DISABLESYSLOG.bro"
+		mv $DISABLESYSLOG.bro $DISABLESYSLOG.zeek || echo "Error renaming $DISABLESYSLOG.bro"
+	fi
+	DISABLESYSLOGLOCAL="/opt/bro/share/bro/disable-syslog/__load__"
+	if [ -f $DISABLESYSLOGLOCAL.bro ]; then
+		mv $DISABLESYSLOGLOCAL.bro $DISABLESYSLOGLOCAL.zeek || echo "Error renaming $DISABLESYSLOGLOCAL.bro"
+	fi
+
 	# if Bro is enabled, then tell user to check/install/restart
 	CONF="/etc/nsm/securityonion.conf"
 	if [ -f $CONF ]; then
 		BRO_ENABLED=`grep BRO_ENABLED $CONF | cut -d\= -f2`
 		if [ "$BRO_ENABLED" = "yes" ] ; then
-			echo "PLEASE NOTE: Bro scripts have been updated."
+			echo "PLEASE NOTE: Zeek scripts have been updated."
 			echo "Please double-check your configuration and add back any local customizations."
-			echo "Then restart Bro as follows:"
-			echo "sudo so-bro-restart"
+			echo "Then restart Zeek as follows:"
+			echo "sudo so-zeek-restart"
 		fi
 	fi
     ;;

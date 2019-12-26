@@ -1,7 +1,7 @@
-*.bro opt/bro/share/bro/securityonion/
-file-extraction opt/bro/share/bro/
-apt1 opt/bro/share/bro/
-shellshock opt/bro/share/bro/
-json-logs opt/bro/share/bro/
-ja3 opt/bro/share/bro/
-hassh opt/bro/share/bro/
+*.zeek opt/bro/share/zeek/securityonion/
+file-extraction opt/bro/share/zeek/
+apt1 opt/bro/share/zeek/
+shellshock opt/bro/share/zeek/
+json-logs opt/bro/share/zeek/
+ja3 opt/bro/share/zeek/
+hassh opt/bro/share/zeek/

@@ -98,7 +98,7 @@ event SecurityOnion::found_sensorname(name: string)
 	add_filter_file();
 	}
 
-event bro_init() &priority=5
+event zeek_init() &priority=5
 	{
 	if ( BPFConf::filename != "" )
 		add_filter_file();

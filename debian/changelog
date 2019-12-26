@@ -1,3 +1,75 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion85) xenial; urgency=medium
+
+  * update disable-syslog 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 06:27:06 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion84) xenial; urgency=medium
+
+  * postinst needs to change bro_init to zeek_init in disable-syslog 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 24 Dec 2019 09:45:21 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion83) xenial; urgency=medium
+
+  * change bro_init to zeek_init 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 24 Dec 2019 08:15:06 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion82) xenial; urgency=medium
+
+  * update __load__ 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 24 Dec 2019 05:50:11 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion81) xenial; urgency=medium
+
+  * undo 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 20 Dec 2019 12:34:48 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion80) xenial; urgency=medium
+
+  * stop bro in preinst 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 20 Dec 2019 12:10:32 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion79) xenial; urgency=medium
+
+  * change [bro] to [zeek]
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 20 Dec 2019 11:05:24 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion78) xenial; urgency=medium
+
+  * improve the transition from broctl.cfg to zeekctl.cfg 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 20 Dec 2019 09:25:46 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion77) xenial; urgency=medium
+
+  * increment version to 3.0.1 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 18 Dec 2019 14:15:47 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion76) xenial; urgency=medium
+
+  * improve postinst script 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 01 Nov 2019 10:03:42 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion75) xenial; urgency=medium
+
+  * change bro to zeek in several places 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 31 Oct 2019 15:33:01 -0400
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion74) xenial; urgency=medium
+
+  * increment version to 3.0.0 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 31 Oct 2019 13:47:36 -0400
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion73) xenial; urgency=medium
 
   * increment version to 2.6.4 

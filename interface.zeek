@@ -23,7 +23,7 @@ event SecurityOnion::interface_line(description: Input::EventDescription, tpe: I
 		}
 	}
 
-event bro_init() &priority=5
+event zeek_init() &priority=5
 	{
 	local peer = get_event_peer()$descr;
 	if ( peer in Cluster::nodes && Cluster::nodes[peer]?$interface )

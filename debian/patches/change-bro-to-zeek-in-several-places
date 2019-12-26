@@ -1,0 +1,1825 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-bro-scripts (20121004-0ubuntu0securityonion75) xenial; urgency=medium
+ .
+   * change bro to zeek in several places
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-bro-scripts-20121004.orig/__load__.bro
++++ /dev/null
+@@ -1,7 +0,0 @@
+-@load ./sensortab
+-@load ./bpfconf
+-@load ./add-interface-to-logs
+-@load ./load-non-default-scripts
+-@load ./conn-add-sensorname.bro
+-
+-@load ./config-bro
+--- /dev/null
++++ securityonion-bro-scripts-20121004/__load__.zeek
+@@ -0,0 +1,7 @@
++@load ./sensortab
++@load ./bpfconf
++@load ./add-interface-to-logs
++@load ./load-non-default-scripts
++@load ./conn-add-sensorname.bro
++
++@load ./config-bro
+--- securityonion-bro-scripts-20121004.orig/add-interface-to-logs.bro
++++ /dev/null
+@@ -1,26 +0,0 @@
+-
+-event bro_init()
+-	{
+-	if ( ! reading_live_traffic() )
+-		return;
+-
+-	Log::remove_default_filter(HTTP::LOG);
+-	Log::add_filter(HTTP::LOG, [$name = "http-interfaces",
+-	                            $path_func(id: Log::ID, path: string, rec: HTTP::Info) = 
+-	                            	{ 
+-					if ( Cluster::is_enabled() && Cluster::local_node_type() == Cluster::WORKER )
+-					{
+-						local node = Cluster::node;
+-						if ( node in Cluster::nodes && Cluster::nodes[node]?$interface )
+-						{
+-							# If af_packet plugin is enabled, we need to strip "af_packet::" off the interface name
+-							local interfacename = Cluster::nodes[node]$interface;
+-							interfacename = subst_string(interfacename, "af_packet::", "");
+-							return cat("http_", interfacename);
+-						}
+-					}
+-	                            	else
+-	                            		return "http";
+-	                            	}
+-	                            ]);
+-	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/add-interface-to-logs.zeek
+@@ -0,0 +1,26 @@
++
++event bro_init()
++	{
++	if ( ! reading_live_traffic() )
++		return;
++
++	Log::remove_default_filter(HTTP::LOG);
++	Log::add_filter(HTTP::LOG, [$name = "http-interfaces",
++	                            $path_func(id: Log::ID, path: string, rec: HTTP::Info) = 
++	                            	{ 
++					if ( Cluster::is_enabled() && Cluster::local_node_type() == Cluster::WORKER )
++					{
++						local node = Cluster::node;
++						if ( node in Cluster::nodes && Cluster::nodes[node]?$interface )
++						{
++							# If af_packet plugin is enabled, we need to strip "af_packet::" off the interface name
++							local interfacename = Cluster::nodes[node]$interface;
++							interfacename = subst_string(interfacename, "af_packet::", "");
++							return cat("http_", interfacename);
++						}
++					}
++	                            	else
++	                            		return "http";
++	                            	}
++	                            ]);
++	}
+--- securityonion-bro-scripts-20121004.orig/apt1/__load__.bro
++++ /dev/null
+@@ -1,9 +0,0 @@
+-@load frameworks/intel/seen
+-@load frameworks/intel/do_notice
+-@load frameworks/files/hash-all-files
+-
+-redef Intel::read_files += {
+-  fmt("%s/apt1-fqdn.dat", @DIR),
+-  fmt("%s/apt1-md5.dat", @DIR),
+-  fmt("%s/apt1-certs.dat", @DIR)
+-};
+--- /dev/null
++++ securityonion-bro-scripts-20121004/apt1/__load__.zeek
+@@ -0,0 +1,9 @@
++@load frameworks/intel/seen
++@load frameworks/intel/do_notice
++@load frameworks/files/hash-all-files
++
++redef Intel::read_files += {
++  fmt("%s/apt1-fqdn.dat", @DIR),
++  fmt("%s/apt1-md5.dat", @DIR),
++  fmt("%s/apt1-certs.dat", @DIR)
++};
+--- securityonion-bro-scripts-20121004.orig/bpfconf.bro
++++ /dev/null
+@@ -1,105 +0,0 @@
+-##! This script is to support the bpf.conf file like other network monitoring tools use.
+-##! Please don't try to learn from this script right now, there are a large number of
+-##! hacks in it to work around bugs discovered in Bro.
+-
+-@load base/frameworks/notice
+-@load ./sensortab
+-
+-module BPFConf;
+-
+-export {
+-	## The file that is watched on disk for BPF filter changes.
+-	## Two templated variables are available; "sensorname" and "interface".
+-	## They can be used by surrounding the term by doubled curly braces.
+-	const filename = "/etc/nsm/{{sensorname}}/bpf-bro.conf" &redef;
+-
+-	redef enum Notice::Type += { 
+-		## Invalid filter notice.
+-		InvalidFilter
+-	};
+-}
+-
+-global filter_parts: vector of string = vector();
+-global current_filter_filename = "";
+-
+-type FilterLine: record {
+-	s: string;
+-};
+-
+-redef enum PcapFilterID += {
+-	BPFConfPcapFilter,
+-};
+-
+-event BPFConf::line(description: Input::EventDescription, tpe: Input::Event, s: string)
+-	{
+-	local part = sub(s, /[[:blank:]]*#.*$/, "");
+-
+-	# We don't want any blank parts.
+-	if ( part != "" )
+-		filter_parts[|filter_parts|] = part;
+-	}
+-
+-event Input::end_of_data(name: string, source:string)
+-	{
+-	if ( name == "bpfconf" )
+-		{
+-		local filter = join_string_vec(filter_parts, " ");
+-		capture_filters["bpf.conf"] = filter;
+-		if ( Pcap::precompile_pcap_filter(BPFConfPcapFilter, filter) )
+-			{
+-			PacketFilter::install();
+-			}
+-		else
+-			{
+-			NOTICE([$note=InvalidFilter,
+-			        $msg=fmt("Compiling packet filter from %s failed", filename),
+-			        $sub=filter]);
+-			}
+-
+-		filter_parts=vector();
+-		}
+-	}
+-
+-
+-function add_filter_file()
+-	{
+-	local real_filter_filename = BPFConf::filename;
+-
+-	# Support the interface template value.
+-	if ( SecurityOnion::sensorname != "" )
+-		real_filter_filename = gsub(real_filter_filename, /\{\{sensorname\}\}/, SecurityOnion::sensorname);
+-
+-	# Support the interface template value.
+-	if ( SecurityOnion::interface != "" )
+-		real_filter_filename = gsub(real_filter_filename, /\{\{interface\}\}/, SecurityOnion::interface);
+-
+-	if ( /\{\{/ in real_filter_filename )
+-		{
+-		return;
+-		}
+-	else
+-		Reporter::info(fmt("BPFConf filename set: %s (%s)", real_filter_filename, Cluster::node));
+-
+-	if ( real_filter_filename != current_filter_filename )
+-		{
+-		current_filter_filename = real_filter_filename;
+-		Input::add_event([$source=real_filter_filename,
+-		                  $name="bpfconf",
+-		                  $reader=Input::READER_RAW,
+-		                  $mode=Input::REREAD,
+-		                  $want_record=F,
+-		                  $fields=FilterLine,
+-		                  $ev=BPFConf::line]);
+-		}
+-	}
+-
+-event SecurityOnion::found_sensorname(name: string)
+-	{
+-	add_filter_file();
+-	}
+-
+-event bro_init() &priority=5
+-	{
+-	if ( BPFConf::filename != "" )
+-		add_filter_file();
+-	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/bpfconf.zeek
+@@ -0,0 +1,105 @@
++##! This script is to support the bpf.conf file like other network monitoring tools use.
++##! Please don't try to learn from this script right now, there are a large number of
++##! hacks in it to work around bugs discovered in Bro.
++
++@load base/frameworks/notice
++@load ./sensortab
++
++module BPFConf;
++
++export {
++	## The file that is watched on disk for BPF filter changes.
++	## Two templated variables are available; "sensorname" and "interface".
++	## They can be used by surrounding the term by doubled curly braces.
++	const filename = "/etc/nsm/{{sensorname}}/bpf-bro.conf" &redef;
++
++	redef enum Notice::Type += { 
++		## Invalid filter notice.
++		InvalidFilter
++	};
++}
++
++global filter_parts: vector of string = vector();
++global current_filter_filename = "";
++
++type FilterLine: record {
++	s: string;
++};
++
++redef enum PcapFilterID += {
++	BPFConfPcapFilter,
++};
++
++event BPFConf::line(description: Input::EventDescription, tpe: Input::Event, s: string)
++	{
++	local part = sub(s, /[[:blank:]]*#.*$/, "");
++
++	# We don't want any blank parts.
++	if ( part != "" )
++		filter_parts[|filter_parts|] = part;
++	}
++
++event Input::end_of_data(name: string, source:string)
++	{
++	if ( name == "bpfconf" )
++		{
++		local filter = join_string_vec(filter_parts, " ");
++		capture_filters["bpf.conf"] = filter;
++		if ( Pcap::precompile_pcap_filter(BPFConfPcapFilter, filter) )
++			{
++			PacketFilter::install();
++			}
++		else
++			{
++			NOTICE([$note=InvalidFilter,
++			        $msg=fmt("Compiling packet filter from %s failed", filename),
++			        $sub=filter]);
++			}
++
++		filter_parts=vector();
++		}
++	}
++
++
++function add_filter_file()
++	{
++	local real_filter_filename = BPFConf::filename;
++
++	# Support the interface template value.
++	if ( SecurityOnion::sensorname != "" )
++		real_filter_filename = gsub(real_filter_filename, /\{\{sensorname\}\}/, SecurityOnion::sensorname);
++
++	# Support the interface template value.
++	if ( SecurityOnion::interface != "" )
++		real_filter_filename = gsub(real_filter_filename, /\{\{interface\}\}/, SecurityOnion::interface);
++
++	if ( /\{\{/ in real_filter_filename )
++		{
++		return;
++		}
++	else
++		Reporter::info(fmt("BPFConf filename set: %s (%s)", real_filter_filename, Cluster::node));
++
++	if ( real_filter_filename != current_filter_filename )
++		{
++		current_filter_filename = real_filter_filename;
++		Input::add_event([$source=real_filter_filename,
++		                  $name="bpfconf",
++		                  $reader=Input::READER_RAW,
++		                  $mode=Input::REREAD,
++		                  $want_record=F,
++		                  $fields=FilterLine,
++		                  $ev=BPFConf::line]);
++		}
++	}
++
++event SecurityOnion::found_sensorname(name: string)
++	{
++	add_filter_file();
++	}
++
++event bro_init() &priority=5
++	{
++	if ( BPFConf::filename != "" )
++		add_filter_file();
++	}
+--- securityonion-bro-scripts-20121004.orig/config-bro.bro
++++ /dev/null
+@@ -1,4 +0,0 @@
+-##! This script reconfigures some of the builtin Bro scripts to suit certain SecurityOnion uses.
+-
+-redef Notice::emailed_types += { BPFConf::InvalidFilter };
+-
+--- /dev/null
++++ securityonion-bro-scripts-20121004/config-bro.zeek
+@@ -0,0 +1,4 @@
++##! This script reconfigures some of the builtin Bro scripts to suit certain SecurityOnion uses.
++
++redef Notice::emailed_types += { BPFConf::InvalidFilter };
++
+--- securityonion-bro-scripts-20121004.orig/conn-add-country.bro
++++ /dev/null
+@@ -1,17 +0,0 @@
+-##! Add country codes for the originator and responder to each connection in the conn log.
+-
+-redef record Conn::Info += {
+-	orig_cc: string &log &optional;
+-	resp_cc: string &log &optional;
+-};
+-
+-event connection_state_remove(c: connection)
+-	{
+-	local orig_loc = lookup_location(c$id$orig_h);
+-	if ( orig_loc?$country_code )
+-		c$conn$orig_cc = orig_loc$country_code;
+-
+-	local resp_loc = lookup_location(c$id$resp_h);
+-	if ( resp_loc?$country_code )
+-		c$conn$resp_cc = resp_loc$country_code;
+-	}
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/conn-add-country.zeek
+@@ -0,0 +1,17 @@
++##! Add country codes for the originator and responder to each connection in the conn log.
++
++redef record Conn::Info += {
++	orig_cc: string &log &optional;
++	resp_cc: string &log &optional;
++};
++
++event connection_state_remove(c: connection)
++	{
++	local orig_loc = lookup_location(c$id$orig_h);
++	if ( orig_loc?$country_code )
++		c$conn$orig_cc = orig_loc$country_code;
++
++	local resp_loc = lookup_location(c$id$resp_h);
++	if ( resp_loc?$country_code )
++		c$conn$resp_cc = resp_loc$country_code;
++	}
+\ No newline at end of file
+--- securityonion-bro-scripts-20121004.orig/conn-add-sensorname.bro
++++ /dev/null
+@@ -1,11 +0,0 @@
+-@load ./sensortab
+-
+-redef record Conn::Info += {
+-	sensorname: string &log &optional;
+-};
+-
+-event connection_state_remove(c: connection)
+-	{
+-	c$conn$sensorname = SecurityOnion::sensorname;
+-	}
+-
+--- /dev/null
++++ securityonion-bro-scripts-20121004/conn-add-sensorname.zeek
+@@ -0,0 +1,11 @@
++@load ./sensortab
++
++redef record Conn::Info += {
++	sensorname: string &log &optional;
++};
++
++event connection_state_remove(c: connection)
++	{
++	c$conn$sensorname = SecurityOnion::sensorname;
++	}
++
+--- securityonion-bro-scripts-20121004.orig/file-extraction/__load__.bro
++++ /dev/null
+@@ -1 +0,0 @@
+-@load ./extract
+--- /dev/null
++++ securityonion-bro-scripts-20121004/file-extraction/__load__.zeek
+@@ -0,0 +1 @@
++@load ./extract
+--- securityonion-bro-scripts-20121004.orig/file-extraction/extract.bro
++++ /dev/null
+@@ -1,21 +0,0 @@
+-global ext_map: table[string] of string = {
+-    ["application/x-dosexec"] = "exe",
+-    ["text/plain"] = "txt",
+-    ["image/jpeg"] = "jpg",
+-    ["image/png"] = "png",
+-    ["text/html"] = "html",
+-} &default ="";
+-
+-event file_sniff(f: fa_file, meta: fa_metadata)
+-    {
+-    if ( ! meta?$mime_type || meta$mime_type != "application/x-dosexec" )
+-        return;
+-
+-    local ext = "";
+-
+-    if ( meta?$mime_type )
+-        ext = ext_map[meta$mime_type];
+-
+-    local fname = fmt("/nsm/bro/extracted/%s-%s.%s", f$source, f$id, ext);
+-    Files::add_analyzer(f, Files::ANALYZER_EXTRACT, [$extract_filename=fname]);
+-    }
+--- /dev/null
++++ securityonion-bro-scripts-20121004/file-extraction/extract.zeek
+@@ -0,0 +1,21 @@
++global ext_map: table[string] of string = {
++    ["application/x-dosexec"] = "exe",
++    ["text/plain"] = "txt",
++    ["image/jpeg"] = "jpg",
++    ["image/png"] = "png",
++    ["text/html"] = "html",
++} &default ="";
++
++event file_sniff(f: fa_file, meta: fa_metadata)
++    {
++    if ( ! meta?$mime_type || meta$mime_type != "application/x-dosexec" )
++        return;
++
++    local ext = "";
++
++    if ( meta?$mime_type )
++        ext = ext_map[meta$mime_type];
++
++    local fname = fmt("/nsm/bro/extracted/%s-%s.%s", f$source, f$id, ext);
++    Files::add_analyzer(f, Files::ANALYZER_EXTRACT, [$extract_filename=fname]);
++    }
+--- securityonion-bro-scripts-20121004.orig/hassh/__load__.bro
++++ /dev/null
+@@ -1 +0,0 @@
+-@load ./hassh.bro
+--- /dev/null
++++ securityonion-bro-scripts-20121004/hassh/__load__.zeek
+@@ -0,0 +1 @@
++@load ./hassh.bro
+--- securityonion-bro-scripts-20121004.orig/hassh/hassh.bro
++++ /dev/null
+@@ -1,150 +0,0 @@
+-#                               HASSH                                #
+-#             SSH Key Initiation Exchange Fingerprinting             #
+-#                                                                    #
+-# Script Version: v1.0                                               #
+-# Authors: Ben Reardon (breardon@salesforce.com, @benreardon)        #
+-#        : Jeff Atkinson (jatkinson@salesforce.com)                  #
+-#        : John Althouse (jalthouse@salesforce.com)                  #
+-# Description:  This bro script appends hassh data to ssh.log        #
+-#               by enumerating the SSH_MSG_KEXINIT packets sent      #
+-#               as clear text between the client and server as part  # 
+-#               of the negotiation of an SSH connection.             #
+-# NOTE:  bro currently ( <= v2.5.5) has a bug which reverses         #
+-#        the Client/server flag, the logic in this script reverses   #
+-#        this bug. Therefore once the bro bug is patched, the logic  #
+-#        in this script also needs return to the proper form.        #
+-#                                                                    #
+-# Copyright (c) 2018, salesforce.com, inc.                           #
+-# All rights reserved.                                               #
+-# SPDX-License-Identifier: BSD-3-Clause                              #
+-# For full license text, see the LICENSE file in the repo root or    #
+-# https://opensource.org/licenses/BSD-3-Clause                       #
+-
+-
+-module SSH;
+-
+-export {
+-    type HASSHStorage: record {
+-        hasshVersion:string &log &default="1.0"; # ANY change in hassh/hasshServer composition requires Version update 
+-        hassh:   string   &log &optional &default="";
+-        hasshServer:   string  &log &optional &default="";
+-        
+-        # Client variables #
+-        ckex:    string   &log &optional &default="";
+-        cshka:   string   &log &optional &default="";
+-        ceacts:  string   &log &optional &default="";
+-        cmacts:  string   &log &optional &default="";
+-        ccacts:  string   &log &optional &default="";
+-        #clcts:  string   &log &optional &default=""; 
+-        hasshAlgorithms:  string  &log &optional &default="";
+-        
+-        # Server variables #
+-        skex:     string  &log &optional &default="";
+-        sshka:    string  &log &optional &default="";
+-        seastc:   string  &log &optional &default="";
+-        smastc:   string  &log &optional &default="";
+-        scastc:   string  &log &optional &default="";
+-        #slstc:   string  &log &optional &default="";
+-        hasshServerAlgorithms:  string  &log &optional &default="";
+-    };
+-}
+-
+-redef record connection += {
+-    hassh: HASSHStorage &optional;
+-};
+-    
+-redef record SSH::Info += {
+-    hasshVersion:  string  &log &optional;
+-    hassh:         string  &log &optional;
+-    hasshServer:   string  &log &optional;
+-    
+-    # ===> Log Client variables <=== #
+-    # Comment out any fields that are not required to be logged in their raw form to ssh.log
+-    #ckex:    string   &log &optional;
+-    cshka:   string   &log &optional; 
+-    #ceacts:  string   &log &optional; 
+-    #cmacts:  string   &log &optional;
+-    #ccacts:  string   &log &optional; 
+-    #clcts:   string   &log &optional;
+-    hasshAlgorithms:  string  &log &optional;
+-    
+-    # ===> Log Server variables <=== #
+-    # Comment out any fields that are not required to be logged in their raw form to ssh.log
+-    #skex:     string  &log &optional; 
+-    sshka:    string  &log &optional; 
+-    #seastc:   string  &log &optional; 
+-    #smastc:   string  &log &optional; 
+-    #scastc:   string  &log &optional; 
+-    #slstc:    string  &log &optional;
+-    hasshServerAlgorithms:  string  &log &optional;
+-};
+-
+-
+-# Build Client Application fingerprint #
+-function get_hassh(c:connection, capabilities: SSH::Capabilities ) {
+-    c$hassh = HASSHStorage();
+-    c$hassh$ckex   = join_string_vec(capabilities$kex_algorithms,",");
+-    c$hassh$ceacts = join_string_vec(capabilities$encryption_algorithms$client_to_server,",");
+-    c$hassh$cmacts = join_string_vec(capabilities$mac_algorithms$client_to_server,",");
+-    c$hassh$ccacts = join_string_vec(capabilities$compression_algorithms$client_to_server,",");
+-    c$hassh$cshka  = join_string_vec(capabilities$server_host_key_algorithms,","); # The Host key algorithm set may be useful information by itself but is not included in the hassh.
+-    #c$hassh$clcts  = join_string_vec(capabilities$languages$client_to_server,","); # The Languages field may be useful information by itself but is not included in the hasshServer.
+-    c$hassh$hasshAlgorithms = string_cat(c$hassh$ckex,";",c$hassh$ceacts,";",c$hassh$cmacts,";",c$hassh$ccacts); # Contatenate the four selected lists of algorithms (Key,Enc,MAC,Compression) to build the Client hash
+-    c$hassh$hassh = md5_hash(c$hassh$hasshAlgorithms);
+-}
+-
+-# Build Server Application fingerprint #
+-function get_hasshServer(c:connection, capabilities: SSH::Capabilities ) {
+-    c$hassh = HASSHStorage();
+-    c$hassh$skex   = join_string_vec(capabilities$kex_algorithms,",");
+-    c$hassh$seastc = join_string_vec(capabilities$encryption_algorithms$server_to_client,",");
+-    c$hassh$smastc = join_string_vec(capabilities$mac_algorithms$server_to_client,",");
+-    c$hassh$scastc = join_string_vec(capabilities$compression_algorithms$server_to_client,",");
+-    c$hassh$sshka  = join_string_vec(capabilities$server_host_key_algorithms,","); # The Host key algorithm set may be useful information by itself but is not included in the hasshServer.
+-    #c$hassh$slstc  = join_string_vec(capabilities$languages$server_to_client,","); # The Languages field may be useful information by itself but is not included in the hasshServer.
+-    c$hassh$hasshServerAlgorithms = string_cat(c$hassh$skex,";",c$hassh$seastc,";",c$hassh$smastc,";",c$hassh$scastc); # Contatenate the four selected lists of algorithms (Key,Enc,Message,Compression) to build the Server hash
+-    c$hassh$hasshServer = md5_hash(c$hassh$hasshServerAlgorithms);
+-}
+-
+-# Event #
+-event ssh_capabilities(c: connection, cookie: string, capabilities: SSH::Capabilities) {
+-    if ( !c?$ssh ) {return;}
+-    c$hassh = HASSHStorage();
+-    
+-    # bro currently has a bug which it reverses the Client/server flag.
+-    # The following "if" statements reverses this bug. Once the bro bug is patched, 
+-    # this logic must return to the proper form. 
+-
+-    # DLB - Security Onion is running Bro 2.6.1 which has fixed this bug, so I'm returning the logic to its proper form.
+-    
+-    if ( capabilities$is_server == F ) {
+-        get_hassh(c, capabilities);
+-        c$ssh$hasshVersion = c$hassh$hasshVersion;
+-        c$ssh$hassh  = c$hassh$hassh;
+-        
+-        # ===> Log Client variables <=== #
+-        # Comment out any fields that are not required to be logged in their raw form to ssh.log
+-        #c$ssh$ckex   = c$hassh$ckex;
+-        c$ssh$cshka  = c$hassh$cshka;
+-        #c$ssh$ceacts = c$hassh$ceacts;
+-        #c$ssh$cmacts = c$hassh$cmacts;
+-        #c$ssh$ccacts = c$hassh$ccacts;
+-        #c$ssh$clcts  = c$hassh$clcts;
+-        c$ssh$hasshAlgorithms = c$hassh$hasshAlgorithms;
+-    }
+-    if ( capabilities$is_server == T ) {
+-        get_hasshServer(c, capabilities);
+-        c$ssh$hasshVersion = c$hassh$hasshVersion;
+-        c$ssh$hasshServer = c$hassh$hasshServer;
+-        
+-        # ===> Log Server variables <=== #
+-        # Comment out any fields that are not required to be logged in their raw form to ssh.log
+-        #c$ssh$skex   = c$hassh$skex;
+-        c$ssh$sshka  = c$hassh$sshka;
+-        #c$ssh$seastc = c$hassh$seastc;
+-        #c$ssh$smastc = c$hassh$smastc;
+-        #c$ssh$scastc = c$hassh$scastc;
+-        #c$ssh$slstc  = c$hassh$clcts;
+-        c$ssh$hasshServerAlgorithms = c$hassh$hasshServerAlgorithms;
+-    }
+-}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/hassh/hassh.zeek
+@@ -0,0 +1,150 @@
++#                               HASSH                                #
++#             SSH Key Initiation Exchange Fingerprinting             #
++#                                                                    #
++# Script Version: v1.0                                               #
++# Authors: Ben Reardon (breardon@salesforce.com, @benreardon)        #
++#        : Jeff Atkinson (jatkinson@salesforce.com)                  #
++#        : John Althouse (jalthouse@salesforce.com)                  #
++# Description:  This bro script appends hassh data to ssh.log        #
++#               by enumerating the SSH_MSG_KEXINIT packets sent      #
++#               as clear text between the client and server as part  # 
++#               of the negotiation of an SSH connection.             #
++# NOTE:  bro currently ( <= v2.5.5) has a bug which reverses         #
++#        the Client/server flag, the logic in this script reverses   #
++#        this bug. Therefore once the bro bug is patched, the logic  #
++#        in this script also needs return to the proper form.        #
++#                                                                    #
++# Copyright (c) 2018, salesforce.com, inc.                           #
++# All rights reserved.                                               #
++# SPDX-License-Identifier: BSD-3-Clause                              #
++# For full license text, see the LICENSE file in the repo root or    #
++# https://opensource.org/licenses/BSD-3-Clause                       #
++
++
++module SSH;
++
++export {
++    type HASSHStorage: record {
++        hasshVersion:string &log &default="1.0"; # ANY change in hassh/hasshServer composition requires Version update 
++        hassh:   string   &log &optional &default="";
++        hasshServer:   string  &log &optional &default="";
++        
++        # Client variables #
++        ckex:    string   &log &optional &default="";
++        cshka:   string   &log &optional &default="";
++        ceacts:  string   &log &optional &default="";
++        cmacts:  string   &log &optional &default="";
++        ccacts:  string   &log &optional &default="";
++        #clcts:  string   &log &optional &default=""; 
++        hasshAlgorithms:  string  &log &optional &default="";
++        
++        # Server variables #
++        skex:     string  &log &optional &default="";
++        sshka:    string  &log &optional &default="";
++        seastc:   string  &log &optional &default="";
++        smastc:   string  &log &optional &default="";
++        scastc:   string  &log &optional &default="";
++        #slstc:   string  &log &optional &default="";
++        hasshServerAlgorithms:  string  &log &optional &default="";
++    };
++}
++
++redef record connection += {
++    hassh: HASSHStorage &optional;
++};
++    
++redef record SSH::Info += {
++    hasshVersion:  string  &log &optional;
++    hassh:         string  &log &optional;
++    hasshServer:   string  &log &optional;
++    
++    # ===> Log Client variables <=== #
++    # Comment out any fields that are not required to be logged in their raw form to ssh.log
++    #ckex:    string   &log &optional;
++    cshka:   string   &log &optional; 
++    #ceacts:  string   &log &optional; 
++    #cmacts:  string   &log &optional;
++    #ccacts:  string   &log &optional; 
++    #clcts:   string   &log &optional;
++    hasshAlgorithms:  string  &log &optional;
++    
++    # ===> Log Server variables <=== #
++    # Comment out any fields that are not required to be logged in their raw form to ssh.log
++    #skex:     string  &log &optional; 
++    sshka:    string  &log &optional; 
++    #seastc:   string  &log &optional; 
++    #smastc:   string  &log &optional; 
++    #scastc:   string  &log &optional; 
++    #slstc:    string  &log &optional;
++    hasshServerAlgorithms:  string  &log &optional;
++};
++
++
++# Build Client Application fingerprint #
++function get_hassh(c:connection, capabilities: SSH::Capabilities ) {
++    c$hassh = HASSHStorage();
++    c$hassh$ckex   = join_string_vec(capabilities$kex_algorithms,",");
++    c$hassh$ceacts = join_string_vec(capabilities$encryption_algorithms$client_to_server,",");
++    c$hassh$cmacts = join_string_vec(capabilities$mac_algorithms$client_to_server,",");
++    c$hassh$ccacts = join_string_vec(capabilities$compression_algorithms$client_to_server,",");
++    c$hassh$cshka  = join_string_vec(capabilities$server_host_key_algorithms,","); # The Host key algorithm set may be useful information by itself but is not included in the hassh.
++    #c$hassh$clcts  = join_string_vec(capabilities$languages$client_to_server,","); # The Languages field may be useful information by itself but is not included in the hasshServer.
++    c$hassh$hasshAlgorithms = string_cat(c$hassh$ckex,";",c$hassh$ceacts,";",c$hassh$cmacts,";",c$hassh$ccacts); # Contatenate the four selected lists of algorithms (Key,Enc,MAC,Compression) to build the Client hash
++    c$hassh$hassh = md5_hash(c$hassh$hasshAlgorithms);
++}
++
++# Build Server Application fingerprint #
++function get_hasshServer(c:connection, capabilities: SSH::Capabilities ) {
++    c$hassh = HASSHStorage();
++    c$hassh$skex   = join_string_vec(capabilities$kex_algorithms,",");
++    c$hassh$seastc = join_string_vec(capabilities$encryption_algorithms$server_to_client,",");
++    c$hassh$smastc = join_string_vec(capabilities$mac_algorithms$server_to_client,",");
++    c$hassh$scastc = join_string_vec(capabilities$compression_algorithms$server_to_client,",");
++    c$hassh$sshka  = join_string_vec(capabilities$server_host_key_algorithms,","); # The Host key algorithm set may be useful information by itself but is not included in the hasshServer.
++    #c$hassh$slstc  = join_string_vec(capabilities$languages$server_to_client,","); # The Languages field may be useful information by itself but is not included in the hasshServer.
++    c$hassh$hasshServerAlgorithms = string_cat(c$hassh$skex,";",c$hassh$seastc,";",c$hassh$smastc,";",c$hassh$scastc); # Contatenate the four selected lists of algorithms (Key,Enc,Message,Compression) to build the Server hash
++    c$hassh$hasshServer = md5_hash(c$hassh$hasshServerAlgorithms);
++}
++
++# Event #
++event ssh_capabilities(c: connection, cookie: string, capabilities: SSH::Capabilities) {
++    if ( !c?$ssh ) {return;}
++    c$hassh = HASSHStorage();
++    
++    # bro currently has a bug which it reverses the Client/server flag.
++    # The following "if" statements reverses this bug. Once the bro bug is patched, 
++    # this logic must return to the proper form. 
++
++    # DLB - Security Onion is running Bro 2.6.1 which has fixed this bug, so I'm returning the logic to its proper form.
++    
++    if ( capabilities$is_server == F ) {
++        get_hassh(c, capabilities);
++        c$ssh$hasshVersion = c$hassh$hasshVersion;
++        c$ssh$hassh  = c$hassh$hassh;
++        
++        # ===> Log Client variables <=== #
++        # Comment out any fields that are not required to be logged in their raw form to ssh.log
++        #c$ssh$ckex   = c$hassh$ckex;
++        c$ssh$cshka  = c$hassh$cshka;
++        #c$ssh$ceacts = c$hassh$ceacts;
++        #c$ssh$cmacts = c$hassh$cmacts;
++        #c$ssh$ccacts = c$hassh$ccacts;
++        #c$ssh$clcts  = c$hassh$clcts;
++        c$ssh$hasshAlgorithms = c$hassh$hasshAlgorithms;
++    }
++    if ( capabilities$is_server == T ) {
++        get_hasshServer(c, capabilities);
++        c$ssh$hasshVersion = c$hassh$hasshVersion;
++        c$ssh$hasshServer = c$hassh$hasshServer;
++        
++        # ===> Log Server variables <=== #
++        # Comment out any fields that are not required to be logged in their raw form to ssh.log
++        #c$ssh$skex   = c$hassh$skex;
++        c$ssh$sshka  = c$hassh$sshka;
++        #c$ssh$seastc = c$hassh$seastc;
++        #c$ssh$smastc = c$hassh$smastc;
++        #c$ssh$scastc = c$hassh$scastc;
++        #c$ssh$slstc  = c$hassh$clcts;
++        c$ssh$hasshServerAlgorithms = c$hassh$hasshServerAlgorithms;
++    }
++}
+--- securityonion-bro-scripts-20121004.orig/hostname.bro
++++ /dev/null
+@@ -1,30 +0,0 @@
+-module SecurityOnion;
+-
+-@load base/frameworks/input
+-
+-export {
+-    ## Event to capture when the hostname is discovered.
+-    global SecurityOnion::found_hostname: event(hostname: string);
+-
+-    ## Hostname for this box.
+-    global hostname = "";
+-
+-    type HostnameCmdLine: record { s: string; };
+-}
+-
+-event SecurityOnion::hostname_line(description: Input::EventDescription, tpe: Input::Event, s: string)
+-    {
+-    hostname = s;
+-    event SecurityOnion::found_hostname(hostname);
+-    Input::remove(description$name);
+-    }   
+-
+-event bro_init() &priority=5
+-    {
+-    Input::add_event([$source="hostname |",
+-                      $name="SO-hostname",
+-                      $reader=Input::READER_RAW,
+-                      $want_record=F,
+-                      $fields=HostnameCmdLine,
+-                      $ev=SecurityOnion::hostname_line]);
+-    }   
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/hostname.zeek
+@@ -0,0 +1,30 @@
++module SecurityOnion;
++
++@load base/frameworks/input
++
++export {
++    ## Event to capture when the hostname is discovered.
++    global SecurityOnion::found_hostname: event(hostname: string);
++
++    ## Hostname for this box.
++    global hostname = "";
++
++    type HostnameCmdLine: record { s: string; };
++}
++
++event SecurityOnion::hostname_line(description: Input::EventDescription, tpe: Input::Event, s: string)
++    {
++    hostname = s;
++    event SecurityOnion::found_hostname(hostname);
++    Input::remove(description$name);
++    }   
++
++event bro_init() &priority=5
++    {
++    Input::add_event([$source="hostname |",
++                      $name="SO-hostname",
++                      $reader=Input::READER_RAW,
++                      $want_record=F,
++                      $fields=HostnameCmdLine,
++                      $ev=SecurityOnion::hostname_line]);
++    }   
+\ No newline at end of file
+--- securityonion-bro-scripts-20121004.orig/interface.bro
++++ /dev/null
+@@ -1,45 +0,0 @@
+-module SecurityOnion;
+-
+-@load base/frameworks/input
+-@load base/frameworks/cluster
+-
+-export {
+-	## Event to capture when the interface is discovered.
+-	global SecurityOnion::found_interface: event(inter: string);
+-
+-	## Interface being sniffed.
+-	global interface = "";
+-}
+-
+-type InterfaceCmdLine: record { s: string; };
+-
+-event SecurityOnion::interface_line(description: Input::EventDescription, tpe: Input::Event, s: string)
+-	{
+-	local parts = split_all(s, /[[:blank:]]*=[[:blank:]]*/);
+-	if ( 3 in parts )
+-		{
+-		interface = parts[3];
+-		event SecurityOnion::found_interface(interface);
+-		}
+-	}
+-
+-event bro_init() &priority=5
+-	{
+-	local peer = get_event_peer()$descr;
+-	if ( peer in Cluster::nodes && Cluster::nodes[peer]?$interface )
+-		{
+-		interface = Cluster::nodes[peer]$interface;
+-		event SecurityOnion::found_interface(interface);
+-		return;
+-		}
+-	else
+-		{
+-		Input::add_event([$source= "grep \"interface\" /opt/bro/etc/node.cfg 2>/dev/null | grep -v \"^[[:blank:]]*#\" |",
+-				$name="SO-interface",
+-				$reader=Input::READER_RAW,
+-				$want_record=F,
+-				$fields=InterfaceCmdLine,
+-				$ev=SecurityOnion::interface_line]);		
+-		}
+-	}
+-
+--- /dev/null
++++ securityonion-bro-scripts-20121004/interface.zeek
+@@ -0,0 +1,45 @@
++module SecurityOnion;
++
++@load base/frameworks/input
++@load base/frameworks/cluster
++
++export {
++	## Event to capture when the interface is discovered.
++	global SecurityOnion::found_interface: event(inter: string);
++
++	## Interface being sniffed.
++	global interface = "";
++}
++
++type InterfaceCmdLine: record { s: string; };
++
++event SecurityOnion::interface_line(description: Input::EventDescription, tpe: Input::Event, s: string)
++	{
++	local parts = split_all(s, /[[:blank:]]*=[[:blank:]]*/);
++	if ( 3 in parts )
++		{
++		interface = parts[3];
++		event SecurityOnion::found_interface(interface);
++		}
++	}
++
++event bro_init() &priority=5
++	{
++	local peer = get_event_peer()$descr;
++	if ( peer in Cluster::nodes && Cluster::nodes[peer]?$interface )
++		{
++		interface = Cluster::nodes[peer]$interface;
++		event SecurityOnion::found_interface(interface);
++		return;
++		}
++	else
++		{
++		Input::add_event([$source= "grep \"interface\" /opt/bro/etc/node.cfg 2>/dev/null | grep -v \"^[[:blank:]]*#\" |",
++				$name="SO-interface",
++				$reader=Input::READER_RAW,
++				$want_record=F,
++				$fields=InterfaceCmdLine,
++				$ev=SecurityOnion::interface_line]);		
++		}
++	}
++
+--- securityonion-bro-scripts-20121004.orig/ja3/__load__.bro
++++ /dev/null
+@@ -1,3 +0,0 @@
+-@load ./ja3.bro
+-@load ./intel_ja3.bro
+-@load ./ja3s.bro
+--- /dev/null
++++ securityonion-bro-scripts-20121004/ja3/__load__.zeek
+@@ -0,0 +1,3 @@
++@load ./ja3.bro
++@load ./intel_ja3.bro
++@load ./ja3s.bro
+--- securityonion-bro-scripts-20121004.orig/ja3/intel_ja3.bro
++++ /dev/null
+@@ -1,28 +0,0 @@
+-# This Bro script adds JA3 to the Bro Intel Framework as Intel::JA3
+-#
+-# Author: John B. Althouse (jalthouse@salesforce.com)
+-#
+-# Copyright (c) 2017, salesforce.com, inc.
+-# All rights reserved.
+-# Licensed under the BSD 3-Clause license. 
+-# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
+-
+-module Intel;
+-
+-export {
+-    redef enum Intel::Type += { Intel::JA3 };
+-}
+-
+-export {
+-    redef enum Intel::Where += { SSL::IN_JA3 };
+-}
+-
+-@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
+-event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec)
+-@else
+-event ssl_client_hello(c: connection, version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec)
+-@endif
+-	{
+-	if ( c$ssl?$ja3 )
+-	Intel::seen([$indicator=c$ssl$ja3, $indicator_type=Intel::JA3, $conn=c, $where=SSL::IN_JA3]);
+-	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/ja3/intel_ja3.zeek
+@@ -0,0 +1,28 @@
++# This Bro script adds JA3 to the Bro Intel Framework as Intel::JA3
++#
++# Author: John B. Althouse (jalthouse@salesforce.com)
++#
++# Copyright (c) 2017, salesforce.com, inc.
++# All rights reserved.
++# Licensed under the BSD 3-Clause license. 
++# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
++
++module Intel;
++
++export {
++    redef enum Intel::Type += { Intel::JA3 };
++}
++
++export {
++    redef enum Intel::Where += { SSL::IN_JA3 };
++}
++
++@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
++event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec)
++@else
++event ssl_client_hello(c: connection, version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec)
++@endif
++	{
++	if ( c$ssl?$ja3 )
++	Intel::seen([$indicator=c$ssl$ja3, $indicator_type=Intel::JA3, $conn=c, $where=SSL::IN_JA3]);
++	}
+--- securityonion-bro-scripts-20121004.orig/ja3/ja3.bro
++++ /dev/null
+@@ -1,153 +0,0 @@
+-# This Bro script appends JA3 to ssl.log
+-# Version 1.3 (June 2017)
+-#
+-# Authors: John B. Althouse (jalthouse@salesforce.com) & Jeff Atkinson (jatkinson@salesforce.com)
+-#
+-# Copyright (c) 2017, salesforce.com, inc.
+-# All rights reserved.
+-# Licensed under the BSD 3-Clause license. 
+-# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
+-
+-module JA3;
+-
+-export {
+-redef enum Log::ID += { LOG };
+-}
+-
+-type TLSFPStorage: record {
+-       client_version:  count &default=0 &log;
+-       client_ciphers:  string &default="" &log;
+-       extensions:      string &default="" &log;
+-       e_curves:        string &default="" &log;
+-       ec_point_fmt:    string &default="" &log;
+-};
+-
+-redef record connection += {
+-       tlsfp: TLSFPStorage &optional;
+-};
+-
+-redef record SSL::Info += {
+-  ja3:            string &optional &log;
+-# LOG FIELD VALUES ##
+-#  ja3_version:  string &optional &log;
+-#  ja3_ciphers:  string &optional &log;
+-#  ja3_extensions: string &optional &log;
+-#  ja3_ec:         string &optional &log;
+-#  ja3_ec_fmt:     string &optional &log;
+-};
+-
+-# Google. https://tools.ietf.org/html/draft-davidben-tls-grease-01
+-const grease: set[int] = {
+-    2570,
+-    6682,
+-    10794,
+-    14906,
+-    19018,
+-    23130,
+-    27242,
+-    31354,
+-    35466,
+-    39578,
+-    43690,
+-    47802,
+-    51914,
+-    56026,
+-    60138,
+-    64250
+-};
+-const sep = "-";
+-event bro_init() {
+-    Log::create_stream(JA3::LOG,[$columns=TLSFPStorage, $path="tlsfp"]);
+-}
+-
+-event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
+-{
+-if ( ! c?$tlsfp )
+-    c$tlsfp=TLSFPStorage();
+-    if ( is_orig == T ) {
+-        if ( code in grease ) {
+-            next;
+-        }
+-        if ( c$tlsfp$extensions == "" ) {
+-            c$tlsfp$extensions = cat(code);
+-        }
+-        else {
+-            c$tlsfp$extensions = string_cat(c$tlsfp$extensions, sep,cat(code));
+-        }
+-    }
+-}
+-
+-event ssl_extension_ec_point_formats(c: connection, is_orig: bool, point_formats: index_vec)
+-{
+-if ( !c?$tlsfp )
+-    c$tlsfp=TLSFPStorage();
+-    if ( is_orig == T ) {
+-        for ( i in point_formats ) {
+-            if ( point_formats[i] in grease ) {
+-            next;
+-            }
+-            if ( c$tlsfp$ec_point_fmt == "" ) {
+-            c$tlsfp$ec_point_fmt += cat(point_formats[i]);
+-            }
+-            else {
+-            c$tlsfp$ec_point_fmt += string_cat(sep,cat(point_formats[i]));
+-            }
+-        }
+-    }
+-}
+-
+-event ssl_extension_elliptic_curves(c: connection, is_orig: bool, curves: index_vec)
+-{
+-    if ( !c?$tlsfp )
+-    c$tlsfp=TLSFPStorage();
+-    if ( is_orig == T  ) {
+-        for ( i in curves ) {
+-            if ( curves[i] in grease ) {
+-            next;
+-            }
+-            if ( c$tlsfp$e_curves == "" ) {
+-                c$tlsfp$e_curves += cat(curves[i]);
+-            }
+-            else {
+-                c$tlsfp$e_curves += string_cat(sep,cat(curves[i]));
+-            }
+-        }
+-    }
+-}
+-
+-@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
+-event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec) &priority=1
+-@else
+-event ssl_client_hello(c: connection, version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec) &priority=1
+-@endif
+-{
+-    if ( !c?$tlsfp )
+-    c$tlsfp=TLSFPStorage();
+-    c$tlsfp$client_version = version;
+-    for ( i in ciphers ) {
+-        if ( ciphers[i] in grease ) {
+-            next;
+-        }
+-        if ( c$tlsfp$client_ciphers == "" ) { 
+-            c$tlsfp$client_ciphers += cat(ciphers[i]);
+-        }
+-        else {
+-            c$tlsfp$client_ciphers += string_cat(sep,cat(ciphers[i]));
+-        }
+-    }
+-    local sep2 = ",";
+-    local ja3_string = string_cat(cat(c$tlsfp$client_version),sep2,c$tlsfp$client_ciphers,sep2,c$tlsfp$extensions,sep2,c$tlsfp$e_curves,sep2,c$tlsfp$ec_point_fmt);
+-    local tlsfp_1 = md5_hash(ja3_string);
+-    c$ssl$ja3 = tlsfp_1;
+-
+-# LOG FIELD VALUES ##
+-#c$ssl$ja3_version = cat(c$tlsfp$client_version);
+-#c$ssl$ja3_ciphers = c$tlsfp$client_ciphers;
+-#c$ssl$ja3_extensions = c$tlsfp$extensions;
+-#c$ssl$ja3_ec = c$tlsfp$e_curves;
+-#c$ssl$ja3_ec_fmt = c$tlsfp$ec_point_fmt;
+-#
+-# FOR DEBUGGING ##
+-#print "JA3: "+tlsfp_1+" Fingerprint String: "+ja3_string;
+-
+-}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/ja3/ja3.zeek
+@@ -0,0 +1,153 @@
++# This Bro script appends JA3 to ssl.log
++# Version 1.3 (June 2017)
++#
++# Authors: John B. Althouse (jalthouse@salesforce.com) & Jeff Atkinson (jatkinson@salesforce.com)
++#
++# Copyright (c) 2017, salesforce.com, inc.
++# All rights reserved.
++# Licensed under the BSD 3-Clause license. 
++# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
++
++module JA3;
++
++export {
++redef enum Log::ID += { LOG };
++}
++
++type TLSFPStorage: record {
++       client_version:  count &default=0 &log;
++       client_ciphers:  string &default="" &log;
++       extensions:      string &default="" &log;
++       e_curves:        string &default="" &log;
++       ec_point_fmt:    string &default="" &log;
++};
++
++redef record connection += {
++       tlsfp: TLSFPStorage &optional;
++};
++
++redef record SSL::Info += {
++  ja3:            string &optional &log;
++# LOG FIELD VALUES ##
++#  ja3_version:  string &optional &log;
++#  ja3_ciphers:  string &optional &log;
++#  ja3_extensions: string &optional &log;
++#  ja3_ec:         string &optional &log;
++#  ja3_ec_fmt:     string &optional &log;
++};
++
++# Google. https://tools.ietf.org/html/draft-davidben-tls-grease-01
++const grease: set[int] = {
++    2570,
++    6682,
++    10794,
++    14906,
++    19018,
++    23130,
++    27242,
++    31354,
++    35466,
++    39578,
++    43690,
++    47802,
++    51914,
++    56026,
++    60138,
++    64250
++};
++const sep = "-";
++event bro_init() {
++    Log::create_stream(JA3::LOG,[$columns=TLSFPStorage, $path="tlsfp"]);
++}
++
++event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
++{
++if ( ! c?$tlsfp )
++    c$tlsfp=TLSFPStorage();
++    if ( is_orig == T ) {
++        if ( code in grease ) {
++            next;
++        }
++        if ( c$tlsfp$extensions == "" ) {
++            c$tlsfp$extensions = cat(code);
++        }
++        else {
++            c$tlsfp$extensions = string_cat(c$tlsfp$extensions, sep,cat(code));
++        }
++    }
++}
++
++event ssl_extension_ec_point_formats(c: connection, is_orig: bool, point_formats: index_vec)
++{
++if ( !c?$tlsfp )
++    c$tlsfp=TLSFPStorage();
++    if ( is_orig == T ) {
++        for ( i in point_formats ) {
++            if ( point_formats[i] in grease ) {
++            next;
++            }
++            if ( c$tlsfp$ec_point_fmt == "" ) {
++            c$tlsfp$ec_point_fmt += cat(point_formats[i]);
++            }
++            else {
++            c$tlsfp$ec_point_fmt += string_cat(sep,cat(point_formats[i]));
++            }
++        }
++    }
++}
++
++event ssl_extension_elliptic_curves(c: connection, is_orig: bool, curves: index_vec)
++{
++    if ( !c?$tlsfp )
++    c$tlsfp=TLSFPStorage();
++    if ( is_orig == T  ) {
++        for ( i in curves ) {
++            if ( curves[i] in grease ) {
++            next;
++            }
++            if ( c$tlsfp$e_curves == "" ) {
++                c$tlsfp$e_curves += cat(curves[i]);
++            }
++            else {
++                c$tlsfp$e_curves += string_cat(sep,cat(curves[i]));
++            }
++        }
++    }
++}
++
++@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
++event ssl_client_hello(c: connection, version: count, record_version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec, comp_methods: index_vec) &priority=1
++@else
++event ssl_client_hello(c: connection, version: count, possible_ts: time, client_random: string, session_id: string, ciphers: index_vec) &priority=1
++@endif
++{
++    if ( !c?$tlsfp )
++    c$tlsfp=TLSFPStorage();
++    c$tlsfp$client_version = version;
++    for ( i in ciphers ) {
++        if ( ciphers[i] in grease ) {
++            next;
++        }
++        if ( c$tlsfp$client_ciphers == "" ) { 
++            c$tlsfp$client_ciphers += cat(ciphers[i]);
++        }
++        else {
++            c$tlsfp$client_ciphers += string_cat(sep,cat(ciphers[i]));
++        }
++    }
++    local sep2 = ",";
++    local ja3_string = string_cat(cat(c$tlsfp$client_version),sep2,c$tlsfp$client_ciphers,sep2,c$tlsfp$extensions,sep2,c$tlsfp$e_curves,sep2,c$tlsfp$ec_point_fmt);
++    local tlsfp_1 = md5_hash(ja3_string);
++    c$ssl$ja3 = tlsfp_1;
++
++# LOG FIELD VALUES ##
++#c$ssl$ja3_version = cat(c$tlsfp$client_version);
++#c$ssl$ja3_ciphers = c$tlsfp$client_ciphers;
++#c$ssl$ja3_extensions = c$tlsfp$extensions;
++#c$ssl$ja3_ec = c$tlsfp$e_curves;
++#c$ssl$ja3_ec_fmt = c$tlsfp$ec_point_fmt;
++#
++# FOR DEBUGGING ##
++#print "JA3: "+tlsfp_1+" Fingerprint String: "+ja3_string;
++
++}
+--- securityonion-bro-scripts-20121004.orig/ja3/ja3s.bro
++++ /dev/null
+@@ -1,82 +0,0 @@
+-# This Bro script appends JA3S (JA3 Server) to ssl.log
+-# Version 1.0 (August 2018)
+-# This builds a fingerprint for the SSL Server Hello packet based on SSL/TLS version, cipher picked, and extensions used. 
+-# Designed to be used in conjunction with JA3 to fingerprint SSL communication between clients and servers.
+-#
+-# Authors: John B. Althouse (jalthouse@salesforce.com) Jeff Atkinson (jatkinson@salesforce.com)
+-# Copyright (c) 2018, salesforce.com, inc.
+-# All rights reserved.
+-# Licensed under the BSD 3-Clause license. 
+-# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
+-#
+-
+-
+-
+-module JA3_Server;
+-
+-export {
+-redef enum Log::ID += { LOG };
+-}
+-
+-type JA3Sstorage: record {
+-       server_version:      count &default=0 &log;
+-       server_cipher:      count &default=0 &log;
+-       server_extensions:   string &default="" &log;
+-};
+-
+-redef record connection += {
+-       ja3sfp: JA3Sstorage &optional;
+-};
+-
+-redef record SSL::Info += {
+-  ja3s:            string &optional &log;
+-# LOG FIELD VALUES #
+-#  ja3s_version:  string &optional &log;
+-#  ja3s_cipher:  string &optional &log;
+-#  ja3s_extensions: string &optional &log;
+-};
+-
+-
+-const sep = "-";
+-event bro_init() {
+-    Log::create_stream(JA3_Server::LOG,[$columns=JA3Sstorage, $path="ja3sfp"]);
+-}
+-
+-event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
+-{
+-if ( ! c?$ja3sfp )
+-    c$ja3sfp=JA3Sstorage();
+-    if ( is_orig == F ) { 
+-        if ( c$ja3sfp$server_extensions == "" ) {
+-            c$ja3sfp$server_extensions = cat(code);
+-        }
+-        else {
+-            c$ja3sfp$server_extensions = string_cat(c$ja3sfp$server_extensions, sep,cat(code));
+-        }
+-    }
+-}
+-
+-@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
+-event ssl_server_hello(c: connection, version: count, record_version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count) &priority=1
+-@else
+-event ssl_server_hello(c: connection, version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count) &priority=1
+-@endif
+-{
+-    if ( !c?$ja3sfp )
+-    c$ja3sfp=JA3Sstorage();
+-    c$ja3sfp$server_version = version;
+-    c$ja3sfp$server_cipher = cipher;
+-    local sep2 = ",";
+-    local ja3s_string = string_cat(cat(c$ja3sfp$server_version),sep2,cat(c$ja3sfp$server_cipher),sep2,c$ja3sfp$server_extensions);
+-    local ja3sfp_1 = md5_hash(ja3s_string);
+-    c$ssl$ja3s = ja3sfp_1;
+-
+-# LOG FIELD VALUES #
+-#c$ssl$ja3s_version = cat(c$ja3sfp$server_version);
+-#c$ssl$ja3s_cipher = cat(c$ja3sfp$server_cipher);
+-#c$ssl$ja3s_extensions = c$ja3sfp$server_extensions;
+-#
+-# FOR DEBUGGING #
+-#print "JA3S: "+ja3sfp_1+" Fingerprint String: "+ja3s_string;
+-
+-}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/ja3/ja3s.zeek
+@@ -0,0 +1,82 @@
++# This Bro script appends JA3S (JA3 Server) to ssl.log
++# Version 1.0 (August 2018)
++# This builds a fingerprint for the SSL Server Hello packet based on SSL/TLS version, cipher picked, and extensions used. 
++# Designed to be used in conjunction with JA3 to fingerprint SSL communication between clients and servers.
++#
++# Authors: John B. Althouse (jalthouse@salesforce.com) Jeff Atkinson (jatkinson@salesforce.com)
++# Copyright (c) 2018, salesforce.com, inc.
++# All rights reserved.
++# Licensed under the BSD 3-Clause license. 
++# For full license text, see LICENSE.txt file in the repo root  or https://opensource.org/licenses/BSD-3-Clause
++#
++
++
++
++module JA3_Server;
++
++export {
++redef enum Log::ID += { LOG };
++}
++
++type JA3Sstorage: record {
++       server_version:      count &default=0 &log;
++       server_cipher:      count &default=0 &log;
++       server_extensions:   string &default="" &log;
++};
++
++redef record connection += {
++       ja3sfp: JA3Sstorage &optional;
++};
++
++redef record SSL::Info += {
++  ja3s:            string &optional &log;
++# LOG FIELD VALUES #
++#  ja3s_version:  string &optional &log;
++#  ja3s_cipher:  string &optional &log;
++#  ja3s_extensions: string &optional &log;
++};
++
++
++const sep = "-";
++event bro_init() {
++    Log::create_stream(JA3_Server::LOG,[$columns=JA3Sstorage, $path="ja3sfp"]);
++}
++
++event ssl_extension(c: connection, is_orig: bool, code: count, val: string)
++{
++if ( ! c?$ja3sfp )
++    c$ja3sfp=JA3Sstorage();
++    if ( is_orig == F ) { 
++        if ( c$ja3sfp$server_extensions == "" ) {
++            c$ja3sfp$server_extensions = cat(code);
++        }
++        else {
++            c$ja3sfp$server_extensions = string_cat(c$ja3sfp$server_extensions, sep,cat(code));
++        }
++    }
++}
++
++@if ( Version::at_least("2.6") || ( Version::number == 20500 && Version::info$commit >= 944 ) )
++event ssl_server_hello(c: connection, version: count, record_version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count) &priority=1
++@else
++event ssl_server_hello(c: connection, version: count, possible_ts: time, server_random: string, session_id: string, cipher: count, comp_method: count) &priority=1
++@endif
++{
++    if ( !c?$ja3sfp )
++    c$ja3sfp=JA3Sstorage();
++    c$ja3sfp$server_version = version;
++    c$ja3sfp$server_cipher = cipher;
++    local sep2 = ",";
++    local ja3s_string = string_cat(cat(c$ja3sfp$server_version),sep2,cat(c$ja3sfp$server_cipher),sep2,c$ja3sfp$server_extensions);
++    local ja3sfp_1 = md5_hash(ja3s_string);
++    c$ssl$ja3s = ja3sfp_1;
++
++# LOG FIELD VALUES #
++#c$ssl$ja3s_version = cat(c$ja3sfp$server_version);
++#c$ssl$ja3s_cipher = cat(c$ja3sfp$server_cipher);
++#c$ssl$ja3s_extensions = c$ja3sfp$server_extensions;
++#
++# FOR DEBUGGING #
++#print "JA3S: "+ja3sfp_1+" Fingerprint String: "+ja3s_string;
++
++}
+--- securityonion-bro-scripts-20121004.orig/json-logs/__load__.bro
++++ /dev/null
+@@ -1,3 +0,0 @@
+-@load tuning/json-logs
+-redef LogAscii::json_timestamps = JSON::TS_ISO8601;
+-redef LogAscii::use_json = T;
+--- /dev/null
++++ securityonion-bro-scripts-20121004/json-logs/__load__.zeek
+@@ -0,0 +1,3 @@
++@load tuning/json-logs
++redef LogAscii::json_timestamps = JSON::TS_ISO8601;
++redef LogAscii::use_json = T;
+--- securityonion-bro-scripts-20121004.orig/load-non-default-scripts.bro
++++ /dev/null
+@@ -1 +0,0 @@
+-@load misc/capture-loss
+\ No newline at end of file
+--- /dev/null
++++ securityonion-bro-scripts-20121004/load-non-default-scripts.zeek
+@@ -0,0 +1 @@
++@load misc/capture-loss
+\ No newline at end of file
+--- securityonion-bro-scripts-20121004.orig/readfile.bro
++++ /dev/null
+@@ -1,55 +0,0 @@
+-module SecurityOnion;
+-
+-export {
+-	## Read a file.  This function *must* be called from within 
+-	## a "when" statement since it's an asynchronous function.
+-	##
+-	## filename: The full path and filename to read off disk.
+-	##
+-	## Returns: The contents of the file as a string.
+-	global readfile: function(filename: string): string;
+-}
+-
+-global outstanding_reads: table[string] of string = table();
+-global complete_reads: set[string] = set();
+-
+-type Line: record {
+-	l: string;
+-};
+-
+-event read_entry(desc: Input::EventDescription, tpe: Input::Event, line: string)
+-	{
+-	if ( desc$name in outstanding_reads ) 
+-		{
+-		outstanding_reads[desc$name] += line + "\n";
+-		}
+-	}
+-
+-event Input::end_of_data(name: string, source:string)
+-	{
+-	if ( name in complete_reads )
+-		delete complete_reads[name];
+-	}
+-
+-function readfile(filename: string): string
+-	{
+-	local id = unique_id("SOrfile");
+-	outstanding_reads[id] = "";
+-	add complete_reads[id];
+-	
+-	Input::add_event([$source=filename,
+-	                  $reader=Input::READER_RAW,
+-	                  $mode=Input::MANUAL,
+-	                  $name=id,
+-	                  $fields=Line,
+-	                  $want_record=F,
+-	                  $ev=read_entry]);
+-
+-	return when ( id !in complete_reads )
+-		{
+-		local output = outstanding_reads[id];
+-		delete outstanding_reads[id];
+-		Input::remove(id);
+-		return output;
+-		}
+-	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/readfile.zeek
+@@ -0,0 +1,55 @@
++module SecurityOnion;
++
++export {
++	## Read a file.  This function *must* be called from within 
++	## a "when" statement since it's an asynchronous function.
++	##
++	## filename: The full path and filename to read off disk.
++	##
++	## Returns: The contents of the file as a string.
++	global readfile: function(filename: string): string;
++}
++
++global outstanding_reads: table[string] of string = table();
++global complete_reads: set[string] = set();
++
++type Line: record {
++	l: string;
++};
++
++event read_entry(desc: Input::EventDescription, tpe: Input::Event, line: string)
++	{
++	if ( desc$name in outstanding_reads ) 
++		{
++		outstanding_reads[desc$name] += line + "\n";
++		}
++	}
++
++event Input::end_of_data(name: string, source:string)
++	{
++	if ( name in complete_reads )
++		delete complete_reads[name];
++	}
++
++function readfile(filename: string): string
++	{
++	local id = unique_id("SOrfile");
++	outstanding_reads[id] = "";
++	add complete_reads[id];
++	
++	Input::add_event([$source=filename,
++	                  $reader=Input::READER_RAW,
++	                  $mode=Input::MANUAL,
++	                  $name=id,
++	                  $fields=Line,
++	                  $want_record=F,
++	                  $ev=read_entry]);
++
++	return when ( id !in complete_reads )
++		{
++		local output = outstanding_reads[id];
++		delete outstanding_reads[id];
++		Input::remove(id);
++		return output;
++		}
++	}
+--- securityonion-bro-scripts-20121004.orig/sensortab.bro
++++ /dev/null
+@@ -1,82 +0,0 @@
+-@load ./readfile
+-
+-module SecurityOnion;
+-
+-@load base/frameworks/input
+-@load base/frameworks/cluster
+-
+-export {
+-	## Event to capture when the interface is discovered.
+-	global SecurityOnion::found_interface: event(inter: string);
+-
+-	## Event to capture when the interface is discovered.
+-	global SecurityOnion::found_sensorname: event(name: string);
+-
+-	## Interface being sniffed.
+-	global interface = "";
+-
+-	## Name of the sensor.
+-	global sensorname = "";
+-
+-	## The filename where the sensortab is located.
+-	const sensortab_file = "/opt/bro/etc/node.cfg" &redef;
+-}
+-
+-event bro_init()
+-	{
+-	if ( Cluster::is_enabled() && Cluster::local_node_type() == Cluster::WORKER ) 
+-		{
+-		local node = Cluster::node;
+-		if ( node in Cluster::nodes && Cluster::nodes[node]?$interface )
+-			{
+-			interface = Cluster::nodes[node]$interface;
+-			# If af_packet plugin is enabled, we need to strip "af_packet::" off the interface name
+-			interface = subst_string(interface, "af_packet::", "");
+-			event SecurityOnion::found_interface(interface);
+-			}
+-		}
+-	else if ( Cluster::local_node_type() != Cluster::MANAGER ) 
+-		{
+-		# If running in standalone mode...
+-		when ( local nodefile = readfile(sensortab_file) )
+-			{
+-			local lines = split_string_all(nodefile, /\n/);
+-			for ( i in lines )
+-				{
+-				if ( /^[[:blank:]]*#/ in lines[i] )
+-					next;
+-
+-				local fields = split_string_all(lines[i], /[[:blank:]]*=[[:blank:]]*/);
+-				if ( 2 in fields && fields[0] == "interface" )
+-					{
+-					interface = fields[2];
+-					event SecurityOnion::found_interface(interface);
+-					}
+-				}
+-			}
+-		}
+-	}
+-
+-event SecurityOnion::found_interface(interface: string)
+-	{
+-	when ( local r = readfile("/etc/nsm/sensortab") )
+-		{
+-		local lines = split_string_all(r, /\n/);
+-		for ( i in lines )
+-			{
+-			local fields = split_string_all(lines[i], /\t/);
+-			if ( 6 !in fields )
+-				next;
+-
+-			local name = fields[0];
+-			local iface = fields[6];
+-			
+-			if ( SecurityOnion::iface == interface )
+-				{
+-				#print "Sensorname: " + sensorname + " -- Interface: " + sensor_interface;
+-				sensorname = name;
+-				event SecurityOnion::found_sensorname(sensorname);
+-				}
+-			}
+-		}
+-	}
+--- /dev/null
++++ securityonion-bro-scripts-20121004/sensortab.zeek
+@@ -0,0 +1,82 @@
++@load ./readfile
++
++module SecurityOnion;
++
++@load base/frameworks/input
++@load base/frameworks/cluster
++
++export {
++	## Event to capture when the interface is discovered.
++	global SecurityOnion::found_interface: event(inter: string);
++
++	## Event to capture when the interface is discovered.
++	global SecurityOnion::found_sensorname: event(name: string);
++
++	## Interface being sniffed.
++	global interface = "";
++
++	## Name of the sensor.
++	global sensorname = "";
++
++	## The filename where the sensortab is located.
++	const sensortab_file = "/opt/bro/etc/node.cfg" &redef;
++}
++
++event bro_init()
++	{
++	if ( Cluster::is_enabled() && Cluster::local_node_type() == Cluster::WORKER ) 
++		{
++		local node = Cluster::node;
++		if ( node in Cluster::nodes && Cluster::nodes[node]?$interface )
++			{
++			interface = Cluster::nodes[node]$interface;
++			# If af_packet plugin is enabled, we need to strip "af_packet::" off the interface name
++			interface = subst_string(interface, "af_packet::", "");
++			event SecurityOnion::found_interface(interface);
++			}
++		}
++	else if ( Cluster::local_node_type() != Cluster::MANAGER ) 
++		{
++		# If running in standalone mode...
++		when ( local nodefile = readfile(sensortab_file) )
++			{
++			local lines = split_string_all(nodefile, /\n/);
++			for ( i in lines )
++				{
++				if ( /^[[:blank:]]*#/ in lines[i] )
++					next;
++
++				local fields = split_string_all(lines[i], /[[:blank:]]*=[[:blank:]]*/);
++				if ( 2 in fields && fields[0] == "interface" )
++					{
++					interface = fields[2];
++					event SecurityOnion::found_interface(interface);
++					}
++				}
++			}
++		}
++	}
++
++event SecurityOnion::found_interface(interface: string)
++	{
++	when ( local r = readfile("/etc/nsm/sensortab") )
++		{
++		local lines = split_string_all(r, /\n/);
++		for ( i in lines )
++			{
++			local fields = split_string_all(lines[i], /\t/);
++			if ( 6 !in fields )
++				next;
++
++			local name = fields[0];
++			local iface = fields[6];
++			
++			if ( SecurityOnion::iface == interface )
++				{
++				#print "Sensorname: " + sensorname + " -- Interface: " + sensor_interface;
++				sensorname = name;
++				event SecurityOnion::found_sensorname(sensorname);
++				}
++			}
++		}
++	}

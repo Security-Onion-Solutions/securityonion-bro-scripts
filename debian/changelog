@@ -1,3 +1,51 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion93) xenial; urgency=medium
+
+  * move policy from /opt/bro/share/bro/ to /opt/zeek/share/zeek/ 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 27 Dec 2019 13:34:49 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion92) xenial; urgency=medium
+
+  * move Dirs to /nsm 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 14:23:41 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion91) xenial; urgency=medium
+
+  * more work on intel 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 11:26:24 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion90) xenial; urgency=medium
+
+  * add back the intel symlink 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 10:38:04 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion89) xenial; urgency=medium
+
+  * no more symlinks in /opt/bro/share/bro/ 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 09:35:05 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion88) xenial; urgency=medium
+
+  * move intel to /opt/zeek/share/zeek and create symlink in old location 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 08:55:27 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion87) xenial; urgency=medium
+
+  * move disable-syslog to /opt/zeek/share/zeek/ and create symlink in old location 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 07:45:06 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion86) xenial; urgency=medium
+
+  * update disable-syslog 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Dec 2019 06:42:10 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion85) xenial; urgency=medium
 
   * update disable-syslog 

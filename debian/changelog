@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion94) xenial; urgency=medium
+
+  * fix policy migration 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 27 Dec 2019 14:01:04 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion93) xenial; urgency=medium
 
   * move policy from /opt/bro/share/bro/ to /opt/zeek/share/zeek/ 

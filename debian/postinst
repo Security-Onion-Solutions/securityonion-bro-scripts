@@ -146,11 +146,12 @@ EOF
 #4285358dd748ef74cb8161108e11cb73	Intel::FILE_HASH	Test MD5	T
 EOF
 
-	# Existing deployments need to move /opt/bro/share/bro/policy/ to /opt/zeek/share/zeek/policy/
+	# Existing deployments need to move the contents of /opt/bro/share/bro/policy/ to /opt/zeek/share/zeek/policy/
 	BROPOLICY="/opt/bro/share/bro/policy"
 	if [ -d $BROPOLICY ] && [ ! -L $BROPOLICY ]; then
-		mkdir -p  /opt/zeek/share/zeek/ 	|| echo "Error creating /opt/zeek/share/zeek/"
-		mv $BROPOLICY /opt/zeek/share/zeek/ 	|| echo "Error moving $BROPOLICY"
+		mkdir -p  /opt/zeek/share/zeek/policy 		|| echo "Error creating /opt/zeek/share/zeek/"
+		mv $BROPOLICY/* /opt/zeek/share/zeek/policy/ 	|| echo "Error moving $BROPOLICY"
+		mv $BROPOLICY $BROPOLICY.old			|| echo "Renaming $BROPOLICY"
 	fi
 
 	# If /opt/zeek/share/zeek/policy/ doesn't already exist, create it

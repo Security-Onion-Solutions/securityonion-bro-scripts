@@ -1,3 +1,9 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion95) xenial; urgency=medium
+
+  * symlink /opt/bro/share/bro 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 28 Dec 2019 10:15:20 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion94) xenial; urgency=medium
 
   * fix policy migration 

@@ -112,17 +112,11 @@ case "$1" in
 	INTEL="/opt/zeek/share/zeek/intel/"
 	mkdir -p $INTEL
 
-	# Existing and new deployments need to ensure symlink is in place
-	if [ ! -d $BROINTEL ]; then
-		ln -s $INTEL $BROINTEL || echo "Error creating $BROINTEL symlink"
-	fi
-
 	# Rename intel __load__.zeek if necessary
 	INTELLOAD="/opt/zeek/share/zeek/intel/__load__"
 	if [ -f $INTELLOAD.bro ]; then
 		mv $INTELLOAD.bro $INTELLOAD.zeek || echo "Error renaming $INTELLOAD.bro"
 	fi
-
 
 	# If __load__.zeek doesn't already exist, create it with default values
 	INTEL_LOAD="$INTEL/__load__.zeek"
@@ -157,11 +151,6 @@ EOF
 	# If /opt/zeek/share/zeek/policy/ doesn't already exist, create it
 	POLICY="/opt/zeek/share/zeek/policy/"
 	mkdir -p $POLICY
-
-	# Existing and new deployments need to ensure symlink is in place
-	if [ ! -d $BROPOLICY ]; then
-		ln -s $POLICY $BROPOLICY || echo "Error creating $BROPOLICY symlink"
-	fi
 
 	# Load shellshock
 	if ! grep "load shellshock" $LOCALBRO >/dev/null; then
@@ -206,6 +195,11 @@ EOF
 		fi
 	fi
 
+	# move previous local.bro to new directory
+	if [ -f $LOCALBROPREV ]; then
+		mv $LOCALBROPREV /opt/zeek/share/zeek/site/
+	fi
+
 	# Update broctl.cfg for AF_PACKET
 	BROCTLCFG="/opt/bro/etc/broctl.cfg"
 	if ! grep "lb_custom.InterfacePrefix=af_packet::" $BROCTLCFG >/dev/null; then
@@ -247,6 +241,17 @@ EOF
 	if [ -f $DISABLESYSLOGLOCAL.bro ]; then
 		sed -i 's|disable-syslog.bro|disable-syslog|g' $DISABLESYSLOGLOCAL.bro || echo "Error updating $DISABLESYSLOGLOCAL.bro"
 		mv $DISABLESYSLOGLOCAL.bro $DISABLESYSLOGLOCAL.zeek || echo "Error renaming $DISABLESYSLOGLOCAL.bro"
+	fi
+
+	# if /opt/bro/share/bro still exists as a full directory, rename it
+	DIR="/opt/bro/share/bro"
+	if [ -d $DIR ] && [ ! -L $DIR ]; then
+		mv $DIR $DIR.pre-3.0.1
+	fi
+
+	# Existing and new deployments need to ensure symlink is in place
+	if [ ! -d $DIR ]; then
+		ln -s zeek $DIR || echo "Error creating $DIR symlink"
 	fi
 
 	# if Bro is enabled, then tell user to check/install/restart

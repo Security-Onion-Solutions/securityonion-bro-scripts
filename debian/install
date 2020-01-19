@@ -5,3 +5,4 @@ shellshock opt/bro/share/zeek/
 json-logs opt/bro/share/zeek/
 ja3 opt/bro/share/zeek/
 hassh opt/bro/share/zeek/
+cve-2020-0601 opt/bro/share/zeek/

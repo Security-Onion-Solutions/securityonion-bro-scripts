@@ -34,3 +34,5 @@ remove-conn-add-country
 change-bro-to-zeek-in-several-places
 update-__load__
 change-bro_init-to-zeek_init
+add-cve-2020-0601-script
+change-bro_init-to-zeek_init-for-cve-2020-0601

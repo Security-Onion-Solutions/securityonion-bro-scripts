@@ -1,3 +1,33 @@
+securityonion-bro-scripts (20121004-0ubuntu0securityonion100) xenial; urgency=medium
+
+  * improve postinst 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 18 Jan 2020 11:36:58 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion99) xenial; urgency=medium
+
+  * add more error checking to postinst 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 18 Jan 2020 11:05:57 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion98) xenial; urgency=medium
+
+  * add error checking to postinst 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 18 Jan 2020 10:25:10 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion97) xenial; urgency=medium
+
+  * change bro_init to zeek_init 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 18 Jan 2020 09:27:24 -0500
+
+securityonion-bro-scripts (20121004-0ubuntu0securityonion96) xenial; urgency=medium
+
+  * add cve-2020-0601 script 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 18 Jan 2020 08:05:29 -0500
+
 securityonion-bro-scripts (20121004-0ubuntu0securityonion95) xenial; urgency=medium
 
   * symlink /opt/bro/share/bro 
